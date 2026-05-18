@@ -142,12 +142,6 @@ const STICKER_SIZE = 200;
 const GIF_SIZE = 300;
 // Note: this needs to match the animation time
 const TARGETED_TIMEOUT = 1200;
-const SENT_STATUSES = new Set<MessageStatusType>([
-  'delivered',
-  'read',
-  'sent',
-  'viewed',
-]);
 const GIFT_BADGE_UPDATE_INTERVAL = 30 * SECOND;
 
 enum MetadataPlacement {
@@ -821,17 +815,12 @@ export class Message extends React.PureComponent<Props, State> {
       attachments,
       deletedForEveryone,
       direction,
-      expirationLength,
-      expirationTimestamp,
       giftBadge,
       i18n,
-      isPinned,
       isTapToView,
       isTapToViewError,
       isTapToViewExpired,
       readStatus,
-      shouldHideMetadata,
-      status,
       text,
     }: Readonly<Props> = this.props
   ): MetadataPlacement {
@@ -1134,7 +1123,6 @@ export class Message extends React.PureComponent<Props, State> {
       author,
       contactLabel,
       contactNameColor,
-      i18n,
       isSticker,
       quote,
       timestamp,

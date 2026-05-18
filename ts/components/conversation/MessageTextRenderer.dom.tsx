@@ -486,9 +486,9 @@ function renderNode({
         );
       }
 
-      const rawLang = match[1].trim().toLowerCase();
+      const rawLang = (match[1] ?? '').trim().toLowerCase();
       const lang = rawLang && KNOWN_LANGUAGES.includes(rawLang) ? rawLang : null;
-      const codeText = match[2];
+      const codeText = match[2] ?? '';
 
       parts.push(
         <CodeBlock key={`${key}-c${parts.length}`} code={codeText} lang={lang} isInvisible={isInvisible} />

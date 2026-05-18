@@ -79,7 +79,9 @@ const IV_SIZE = 16;
 
 type EncryptKeys = { aesKey: CryptoKey; macKey: CryptoKey };
 
-async function deriveKeys(packKey: Uint8Array): Promise<EncryptKeys> {
+async function deriveKeys(
+  packKey: Uint8Array<ArrayBuffer>
+): Promise<EncryptKeys> {
   const baseKey = await crypto.subtle.importKey(
     'raw',
     packKey,
@@ -110,9 +112,9 @@ async function deriveKeys(packKey: Uint8Array): Promise<EncryptKeys> {
 }
 
 async function encryptAttachment(
-  plaintext: Uint8Array,
+  plaintext: Uint8Array<ArrayBuffer>,
   keys: EncryptKeys
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const iv = new Uint8Array(IV_SIZE);
   crypto.getRandomValues(iv);
   const ciphertext = new Uint8Array(
@@ -130,7 +132,7 @@ async function encryptAttachment(
   return result;
 }
 
-function toBase64(bytes: Uint8Array): string {
+function toBase64(bytes: Uint8Array<ArrayBuffer>): string {
   let binary = '';
   for (const b of bytes) {
     binary += String.fromCharCode(b);
@@ -153,7 +155,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-async function convertToWebP(url: string): Promise<Uint8Array> {
+async function convertToWebP(url: string): Promise<Uint8Array<ArrayBuffer>> {
   const img = await loadImage(url);
 
   const canvas = document.createElement('canvas');
@@ -202,7 +204,7 @@ async function uploadOnePack(
   author: string,
   mediaUrls: Array<string>
 ): Promise<void> {
-  const imageBuffers: Array<Uint8Array> = [];
+  const imageBuffers: Array<Uint8Array<ArrayBuffer>> = [];
   for (const url of mediaUrls) {
     imageBuffers.push(await convertToWebP(url));
   }
@@ -216,7 +218,7 @@ async function uploadOnePack(
     author,
     stickers: imageBuffers.map((_b, idx) => ({ id: idx, emoji: '\u{1F60A}' })),
     cover: { id: 0, emoji: '\u{1F60A}' },
-  }).finish();
+  });
 
   const encryptedManifest = await encryptAttachment(manifestProto, keys);
   const encryptedImages = await Promise.all(
@@ -393,7 +395,7 @@ function CollectionDetail({
 // -- Main component --
 
 export const RisibankCollectionBrowser = React.memo(
-  function RisibankCollectionBrowserInner({ i18n, installedPacks }: Props) {
+  function RisibankCollectionBrowserInner({ installedPacks }: Props) {
     const [searchQuery, setSearchQuery] = React.useState('');
     const [collections, setCollections] = React.useState<
       Array<RisibankCollection>

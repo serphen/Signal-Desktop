@@ -597,8 +597,9 @@ async function handleUrl(rawTarget: string) {
           ? await dialog.showMessageBox(focusedWindow, options)
           : await dialog.showMessageBox(options);
 
-        if (response < browsers.length) {
-          await openUrlInBrowser(rawTarget, browsers[response].app);
+        const browser = browsers[response];
+        if (browser) {
+          await openUrlInBrowser(rawTarget, browser.app);
         }
       } else {
         await shell.openExternal(rawTarget);

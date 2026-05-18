@@ -41,6 +41,7 @@ import {
 } from '../selectors/message.preload.ts';
 import { SHOW_TOAST } from './toast.preload.ts';
 import { ToastType } from '../../types/Toast.dom.tsx';
+import { getSelectedConversationId } from '../selectors/nav.std.ts';
 import {
   MESSAGE_CHANGED,
   MESSAGE_DELETED,
@@ -144,8 +145,7 @@ function closeLightbox(): ThunkAction<
     });
 
     // Focus the composer after closing the lightbox
-    const { conversations } = getState();
-    const { selectedConversationId } = conversations;
+    const selectedConversationId = getSelectedConversationId(getState());
     if (selectedConversationId) {
       window.reduxActions.composer.setComposerFocus(selectedConversationId);
     }

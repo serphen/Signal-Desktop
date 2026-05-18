@@ -11,6 +11,6 @@ export enum WidthBreakpoint {
   Narrow = 'narrow',
 }
 
-export function getNavSidebarWidthBreakpoint(width: number): WidthBreakpoint {
+export function getNavSidebarWidthBreakpoint(_width: number): WidthBreakpoint {
   return WidthBreakpoint.Wide; // Midnight: never switch to compact icon-only mode
 }
