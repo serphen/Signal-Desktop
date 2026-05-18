@@ -1,9 +1,10 @@
 // Copyright 2020 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useContactNameData } from '../../components/conversation/ContactName.dom.tsx';
+import { DataReader } from '../../sql/Client.preload.ts';
 import {
   ConversationHeader,
   OutgoingCallButtonStyle,
@@ -286,6 +287,34 @@ export const SmartConversationHeader = memo(function SmartConversationHeader({
 
   const minimalConversation = useMinimalConversation(conversation);
 
+  // Midnight: poll for last incoming activity every 60s
+  const ourConversationId =
+    window.ConversationController.getOurConversationId();
+  const [lastIncomingActivityAt, setLastIncomingActivityAt] = useState<
+    number | null
+  >(null);
+  useEffect(() => {
+    if (!ourConversationId) {
+      return;
+    }
+    let cancelled = false;
+    async function poll() {
+      const ts = await DataReader.getLastIncomingActivityTimestamp({
+        conversationId: conversation.id,
+        ourConversationId: ourConversationId!,
+      });
+      if (!cancelled) {
+        setLastIncomingActivityAt(ts);
+      }
+    }
+    void poll();
+    const interval = setInterval(poll, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [conversation.id, ourConversationId]);
+
   return (
     <ConversationHeader
       addedByName={addedByName}
@@ -340,6 +369,7 @@ export const SmartConversationHeader = memo(function SmartConversationHeader({
         acknowledgeGroupMemberNameCollisions
       }
       reviewConversationNameCollision={reviewConversationNameCollision}
+      lastIncomingActivityAt={lastIncomingActivityAt}
     />
   );
 });

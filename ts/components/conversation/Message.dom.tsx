@@ -31,6 +31,7 @@ import { AvatarSpacer } from '../AvatarSpacer.dom.tsx';
 import { MessageBodyReadMore } from './MessageBodyReadMore.dom.tsx';
 import { MessageMetadata } from './MessageMetadata.dom.tsx';
 import { MessageTextMetadataSpacer } from './MessageTextMetadataSpacer.dom.tsx';
+import { formatTimestamp } from '../../util/formatTimestamp.dom.ts';
 import { ImageGrid } from './ImageGrid.dom.tsx';
 import { GIF } from './GIF.dom.tsx';
 import { CurveType, Image } from './Image.dom.tsx';
@@ -136,7 +137,7 @@ const log = createLogger('Message');
 
 const EXPIRATION_CHECK_MINIMUM = 2000;
 const EXPIRED_DELAY = 600;
-const GROUP_AVATAR_SIZE = AvatarSize.TWENTY_EIGHT;
+const GROUP_AVATAR_SIZE = AvatarSize.FORTY;
 const STICKER_SIZE = 200;
 const GIF_SIZE = 300;
 // Note: this needs to match the animation time
@@ -836,15 +837,12 @@ export class Message extends React.PureComponent<Props, State> {
   ): MetadataPlacement {
     const { imageBroken } = this.state;
 
-    if (
-      !expirationLength &&
-      !expirationTimestamp &&
-      !isPinned &&
-      (!status || SENT_STATUSES.has(status)) &&
-      shouldHideMetadata
-    ) {
-      return MetadataPlacement.NotRendered;
-    }
+    // Midnight theme: always render metadata (shown on hover via CSS)
+    // Original Signal logic hides metadata for continuation messages:
+    // if (!expirationLength && !expirationTimestamp && !isPinned &&
+    //     (!status || SENT_STATUSES.has(status)) && shouldHideMetadata) {
+    //   return MetadataPlacement.NotRendered;
+    // }
 
     if (giftBadge) {
       const description =
@@ -991,11 +989,10 @@ export class Message extends React.PureComponent<Props, State> {
   }
 
   #shouldRenderAuthor(): boolean {
-    const { author, conversationType, direction, shouldCollapseAbove } =
+    const { author, shouldCollapseAbove } =
       this.props;
+    // Midnight-style: always show author name for group-start messages
     return Boolean(
-      direction === 'incoming' &&
-      conversationType === 'group' &&
       author.title &&
       !shouldCollapseAbove
     );
@@ -1133,8 +1130,15 @@ export class Message extends React.PureComponent<Props, State> {
   }
 
   #renderAuthor(): ReactNode {
-    const { author, contactLabel, contactNameColor, i18n, isSticker, quote } =
-      this.props;
+    const {
+      author,
+      contactLabel,
+      contactNameColor,
+      i18n,
+      isSticker,
+      quote,
+      timestamp,
+    } = this.props;
 
     if (!this.#shouldRenderAuthor()) {
       return null;
@@ -1153,9 +1157,18 @@ export class Message extends React.PureComponent<Props, State> {
         <ContactName
           contactNameColor={contactNameColor}
           contactLabel={contactLabel}
-          title={author.isMe ? i18n('icu:you') : author.title}
+          title={author.title}
           module={moduleName}
         />
+        <span className="module-message__header-timestamp">
+          <time dateTime={new Date(timestamp).toISOString()}>
+            {formatTimestamp(timestamp, {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: false,
+            })}
+          </time>
+        </span>
       </div>
     );
   }
@@ -2299,20 +2312,18 @@ export class Message extends React.PureComponent<Props, State> {
     const {
       author,
       conversationId,
-      conversationType,
-      direction,
       getPreferredBadge,
       i18n,
       isSelectMode,
-      shouldCollapseBelow,
+      shouldCollapseAbove,
       showContactModal,
       theme,
+      timestamp,
     } = this.props;
 
-    if (conversationType !== 'group' || direction !== 'incoming') {
-      return null;
-    }
-
+    // Midnight-style: show avatar on first message of a group (not collapsed above)
+    // Show spacer on continuation messages to keep text aligned
+    // For continuation messages, add a hover timestamp in the gutter
     return (
       <div
         className={classNames('module-message__author-avatar-container', {
@@ -2321,8 +2332,19 @@ export class Message extends React.PureComponent<Props, State> {
         })}
         inert={isSelectMode ? true : undefined}
       >
-        {shouldCollapseBelow ? (
-          <AvatarSpacer size={GROUP_AVATAR_SIZE} />
+        {shouldCollapseAbove ? (
+          <>
+            <AvatarSpacer size={GROUP_AVATAR_SIZE} />
+            <span className="module-message__gutter-timestamp">
+              <time dateTime={new Date(timestamp).toISOString()}>
+                {formatTimestamp(timestamp, {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: false,
+                })}
+              </time>
+            </span>
+          </>
         ) : (
           <Avatar
             avatarUrl={author.avatarUrl}
@@ -3065,12 +3087,12 @@ export class Message extends React.PureComponent<Props, State> {
         {this.renderQuote()}
         {this.renderStoryReplyContext()}
         {this.renderAttachment()}
-        {this.renderPreview()}
         {this.renderAttachmentTooBig()}
         {this.renderPayment()}
         {this.renderPoll()}
         {this.renderEmbeddedContact()}
         {this.renderText()}
+        {this.renderPreview()}
         {this.renderUndownloadableTextAttachment()}
         {this.#renderAction()}
         {this.#renderMetadata()}

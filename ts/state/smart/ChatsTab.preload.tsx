@@ -25,6 +25,7 @@ import {
   getOtherTabsUnreadStats,
   getTargetedMessage,
   getTargetedMessageSource,
+  getLeftPaneLists,
 } from '../selectors/conversations.dom.ts';
 import { useChatFolderActions } from '../ducks/chatFolders.preload.ts';
 import { useComposerActions } from '../ducks/composer.preload.ts';
@@ -50,9 +51,14 @@ export const SmartChatsTab = memo(function SmartChatsTab() {
   const selectedConversationId = useSelector(getSelectedConversationId);
   const targetedMessageId = useSelector(getTargetedMessage)?.id;
   const targetedMessageSource = useSelector(getTargetedMessageSource);
+  const leftPaneLists = useSelector(getLeftPaneLists);
 
-  const { onConversationClosed, onConversationOpened, scrollToMessage } =
-    useConversationsActions();
+  const {
+    onConversationClosed,
+    onConversationOpened,
+    scrollToMessage,
+    showConversation,
+  } = useConversationsActions();
   const { showWhatsNewModal } = useGlobalModalActions();
   const { toggleNavTabsCollapse } = useItemsActions();
   const { showToast } = useToastActions();
@@ -129,6 +135,21 @@ export const SmartChatsTab = memo(function SmartChatsTab() {
       window.SignalCI?.handleEvent('empty-inbox:rendered', null);
     }
   }, [selectedConversationId]);
+
+  // Auto-select first conversation on startup if none is selected
+  const hasAutoSelected = useRef(false);
+  useEffect(() => {
+    if (hasAutoSelected.current || selectedConversationId) {
+      return;
+    }
+    const first =
+      leftPaneLists.pinnedConversations[0] ??
+      leftPaneLists.conversations[0];
+    if (first) {
+      hasAutoSelected.current = true;
+      showConversation({ conversationId: first.id });
+    }
+  }, [selectedConversationId, leftPaneLists, showConversation]);
 
   return (
     <ChatsTab

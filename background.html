@@ -17,10 +17,10 @@
       content="default-src 'none';
             child-src 'self';
             connect-src 'self' https: wss: attachment: bundles:;
-            font-src 'self' asset:;
+            font-src 'self' asset: data:;
             form-action 'self';
             frame-src 'none';
-            img-src 'self' blob: data: emoji: attachment:;
+            img-src 'self' blob: data: emoji: attachment: https://risibank.fr;
             media-src 'self' blob: attachment:;
             object-src 'none';
             script-src 'self' 'sha256-Qu05oqDmBO5fZacm7tr/oerJcqsW0G/XqP4PRCziovc=' 'sha256-eLeGwSfPmXJ+EUiLfIeXABvLiUqDbiKgNLpHITaabgQ=';
@@ -94,6 +94,14 @@
     <link href="stylesheets/quill.css" rel="stylesheet" type="text/css" />
     <link href="stylesheets/manifest.css" rel="stylesheet" type="text/css" />
     <link href="stylesheets/tailwind.css" rel="stylesheet" type="text/css" />
+    <!-- Midnight font faces (base64 data URIs) -->
+    <link href="stylesheets/_fonts.css" rel="stylesheet" type="text/css" />
+    <!-- Midnight theme override (loaded last to take precedence) -->
+    <link
+      href="stylesheets/midnight-override.css"
+      rel="stylesheet"
+      type="text/css"
+    />
   </head>
   <body class="overflow-hidden">
     <!-- Match ts/components/App.tsx -->

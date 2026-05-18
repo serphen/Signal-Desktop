@@ -248,7 +248,7 @@ export type PropsType = {
   showConversation: ShowConversationType;
 } & LookupConversationWithoutServiceIdActionsType;
 
-const NORMAL_ROW_HEIGHT = 76;
+const NORMAL_ROW_HEIGHT = 68; // 64px item + 4px margin
 const SELECT_ROW_HEIGHT = 52;
 const HEADER_ROW_HEIGHT = 40;
 const EMPTY_RESULTS_ROW_HEIGHT = 48 + 20 + 48;

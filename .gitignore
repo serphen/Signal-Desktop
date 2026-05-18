@@ -1,5 +1,7 @@
 node_modules
 node_modules_bkp
+.pnpm-store/
+roborock-offline/
 .sass-cache
 coverage/*
 build/curve25519_compiled.js

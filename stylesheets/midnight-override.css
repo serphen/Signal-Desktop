@@ -1,0 +1,2267 @@
+/*
+ * Midnight Theme Override for Signal Desktop
+ * ------------------------------------------
+ * Transforms Signal's conversation view to resemble Midnight's midnight theme.
+ * All spacing values taken directly from Midnight's CSS (group-spacing-16, cozy mode).
+ * Only CSS overrides + minimal TSX changes (avatar/author always visible).
+ */
+
+/* Font faces loaded via _fonts.css (linked in background.html) */
+
+/* ==========================================================================
+   CSS Custom Properties — Midnight Midnight visual-refresh palette + layout tokens
+   Source: canary.midnight.com theme-midnight with visual-refresh
+   ========================================================================== */
+:root {
+  /* Backgrounds — Midnight Midnight visual-refresh tokens */
+  --midnight-bg-primary: #000000;              /* --background-base-lowest (neutral-100) */
+  --midnight-bg-chat: #0c0c0e;                 /* --background-base-low (neutral-95) — main chat area */
+  --midnight-bg-secondary: #131416;            /* --background-surface-high (neutral-91) */
+  --midnight-bg-tertiary: #000000;             /* --background-base-lowest (neutral-100) */
+  --midnight-bg-surface-highest: #1e1f22;      /* --background-surface-highest (neutral-83) */
+  --midnight-bg-hover: rgba(255, 255, 255, 0.122); /* --message-background-hover / --background-mod-subtle */
+
+  /* Text — Midnight Midnight visual-refresh tokens */
+  --midnight-text-normal: #dcdcdf;             /* --text-default (neutral-10) */
+  --midnight-text-strong: #e4e4e6;             /* --text-strong (neutral-8) */
+  --midnight-text-subtle: #9d9ea5;             /* --text-subtle (neutral-27) */
+  --midnight-text-muted: #888991;              /* --text-muted (neutral-33) */
+  --midnight-text-link: #3789ea;               /* --text-link (blue-new-42) */
+  --midnight-chat-text-muted: #767780;         /* --chat-text-muted (neutral-38) */
+  --midnight-header-primary: #e4e4e6;          /* --text-strong (neutral-8) — username color, oklab(0.919362 0.000797629 -0.00255835) */
+  --midnight-font: "sd sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Layout tokens — from Midnight CSS variables */
+  --midnight-avatar-size: 40px;                /* --custom-message-avatar-size */
+  --midnight-gutter: 16px;                     /* --custom-message-margin-horizontal */
+  --midnight-message-indent: 4.5rem;           /* 72px = avatar + 2*gutter */
+  --midnight-msg-vertical-pad: 0.125rem;       /* 2px */
+  --midnight-group-spacing: 1.0625rem;         /* 17px (group-spacing-16) */
+  --midnight-group-start-min-height: 2.75rem;  /* 44px */
+  --midnight-meta-space: 0.25rem;              /* 4px */
+
+  /* Misc — Midnight Midnight visual-refresh */
+  --midnight-input-bg: #1e1f22;                /* --background-surface-highest (neutral-83) */
+  --midnight-reaction-bg: #1e1f22;             /* --background-surface-highest (neutral-83) */
+  --midnight-divider: #3b3c43;                 /* --spine-default (neutral-63) */
+  --midnight-border-subtle: rgba(255, 255, 255, 0.200); /* --border-subtle */
+  --midnight-scrollbar-thumb: #595a63;         /* --scrollbar-thin-thumb (neutral-47) */
+  --midnight-input-placeholder: #73747d;       /* --input-placeholder-text (neutral-39) */
+  --midnight-channels-default: #7a7b83;        /* --channels-default (neutral-37) */
+
+  /* Override Signal's own font variable so everything picks up sd sans */
+  --font-sans: "sd sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* ==========================================================================
+   Global font — override Signal's --font-sans + body font.
+   Excludes SignalSymbols icon font (.font-symbols) so icons render correctly.
+   ========================================================================== */
+body.dark-theme,
+body.dark-theme *:not(.font-symbols):not(code):not(pre):not([class*="codeblock"]):not(.MessageTextRenderer__formatting--monospace):not([class*="hljs"]) {
+  font-family: var(--midnight-font) !important;
+}
+
+/* ==========================================================================
+   Background colors
+   ========================================================================== */
+.dark-theme .ConversationView__pane,
+.dark-theme .conversation {
+  background-color: var(--midnight-bg-primary) !important; /* #000000 — user preference */
+}
+
+.dark-theme .module-ConversationHeader {
+  background-color: var(--midnight-bg-secondary) !important;
+  border-bottom: 1px solid var(--midnight-bg-tertiary) !important;
+  box-shadow: none !important;
+}
+
+.dark-theme .NavSidebar {
+  background-color: var(--midnight-bg-primary) !important;
+  position: relative !important;
+}
+
+.dark-theme .NavTabs {
+  background-color: var(--midnight-bg-tertiary) !important;
+}
+
+.dark-theme .ConversationView__composition-area {
+  background-color: var(--midnight-bg-primary) !important;
+}
+
+/* ==========================================================================
+   Message row — exact Midnight cozy layout
+   Midnight: padding 2px top/bottom, 48px left (content indent), 48px right.
+   Avatar is position:absolute at left:16px.
+   We use flex with avatar container instead, same visual result.
+   ========================================================================== */
+.dark-theme .module-message {
+  padding-inline: 0 !important;
+  padding-left: var(--midnight-gutter) !important;    /* 16px */
+  padding-right: var(--midnight-gutter) !important;   /* 16px — same as Midnight */
+  padding-top: var(--midnight-msg-vertical-pad) !important;    /* 2px */
+  padding-bottom: var(--midnight-msg-vertical-pad) !important; /* 2px */
+  border-radius: 0 !important;
+  align-items: flex-start !important;
+  position: relative !important;
+  /* Consistent line height for all message rows */
+  line-height: 1.375rem !important; /* 22px — Midnight baseline */
+}
+
+/* Midnight: hover highlights entire message row */
+.dark-theme .module-message:hover {
+  background-color: var(--midnight-bg-hover) !important;
+}
+
+/* Force outgoing messages to left-align (same as incoming) */
+.dark-theme .module-message--outgoing {
+  flex-direction: row !important;
+}
+
+/* Group-start messages (avatar + author shown): Midnight 17px top margin */
+.dark-theme .module-message:not(.module-message--collapsed-above) {
+  margin-top: var(--midnight-group-spacing) !important;
+}
+
+/* Continuation messages: no extra top margin, zero spacing */
+.dark-theme .module-message--collapsed-above {
+  margin-top: 0 !important;
+}
+
+/* ==========================================================================
+   Message bubble — REMOVED (transparent, no padding/margin/radius)
+   ========================================================================== */
+.dark-theme .module-message__container,
+.dark-theme .module-message__container--incoming,
+.dark-theme .module-message__container--outgoing,
+.dark-theme [class*="module-message__container--outgoing-"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  color: var(--midnight-text-normal) !important;
+  /* static so metadata can position absolute to .module-message row */
+  position: static !important;
+}
+
+.dark-theme .module-message__container-outer {
+  max-width: 100% !important;
+  line-height: 1.375rem !important; /* 22px — Midnight consistent line height */
+}
+
+/* Kill all container margin/padding for collapsed messages (Signal adds 1px) */
+.dark-theme .module-message--collapsed-above .module-message__container,
+.dark-theme .module-message--collapsed-below .module-message__container {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ==========================================================================
+   Avatar — 40px, top-aligned, flex-based (mirrors Midnight absolute positioning)
+   Midnight: position:absolute, left:16px, margin-top:2px
+   We get equivalent via flex: [16px pad][40px avatar][16px gap][content]
+   ========================================================================== */
+.dark-theme .module-message__author-avatar-container {
+  min-width: var(--midnight-avatar-size) !important;
+  width: var(--midnight-avatar-size) !important;
+  margin-inline-end: var(--midnight-gutter) !important; /* 16px gap */
+  padding-bottom: 0 !important;
+  padding-top: 2px !important;  /* Midnight: margin-top: calc(4px - 2px) = 2px */
+  align-items: flex-start !important;
+  flex-shrink: 0 !important;
+}
+
+.dark-theme .module-message__author-avatar-container .module-Avatar,
+.dark-theme .module-message__author-avatar-container .module-Avatar__contents {
+  width: var(--midnight-avatar-size) !important;
+  height: var(--midnight-avatar-size) !important;
+  min-width: var(--midnight-avatar-size) !important;
+  border-radius: 50% !important;
+}
+
+/* ==========================================================================
+   Author name — Midnight: font-weight 600 (semibold), 16px, inline
+   ========================================================================== */
+.dark-theme .module-message__author {
+  color: var(--midnight-header-primary) !important;
+  font-weight: 500 !important;  /* Midnight: --font-weight-medium */
+  font-size: 1rem !important;   /* 16px */
+  line-height: 1.375rem !important; /* 22px */
+  margin-bottom: 0 !important;
+  display: inline !important;
+  overflow: visible !important;
+}
+
+.dark-theme .module-message__author_with_sticker {
+  color: var(--midnight-header-primary) !important;
+  font-weight: 500 !important;
+}
+
+/* ==========================================================================
+   Inline header timestamp — "Username  HH:MM" on group-start
+   Always visible. Small spacing between name and time, no dash.
+   Midnight: font-size 12px, line-height 22px, muted color, font-weight 500.
+   ========================================================================== */
+.dark-theme .module-message__header-timestamp {
+  display: inline !important;
+  margin-inline-start: 0.25rem !important; /* 4px spacing after username */
+  font-size: 0.75rem !important;           /* 12px */
+  line-height: 1.375rem !important;        /* 22px */
+  color: var(--midnight-text-muted) !important;
+  font-weight: 500 !important;
+  vertical-align: baseline !important;
+  padding-left: 2px !important;
+}
+
+.dark-theme .module-message__header-timestamp time {
+  display: inline !important;
+  color: var(--midnight-text-muted) !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+/* ==========================================================================
+   Gutter timestamp — Midnight: shown ONLY on hover for continuation messages
+   Midnight: width 56px (16px gutter + 40px avatar), text-align:end, position:absolute.
+   We offset left by -16px from the avatar container to span the full gutter.
+   ========================================================================== */
+.dark-theme .module-message__gutter-timestamp {
+  position: absolute !important;
+  top: 0 !important;
+  left: calc(-1 * var(--midnight-gutter)) !important;  /* -16px: start at row edge */
+  width: 56px !important;                              /* 16px + 40px = full gutter */
+  height: 1.375rem !important;                         /* 22px — one line */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;                /* text-align: end */
+  opacity: 0 !important;
+  transition: opacity 0.1s ease-out !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.dark-theme .module-message__gutter-timestamp time {
+  font-size: 0.6875rem !important;      /* 11px — Midnight compact */
+  line-height: 1.375rem !important;
+  color: var(--midnight-chat-text-muted) !important; /* #767780 (neutral-38) */
+  font-weight: 500 !important;
+  margin-inline-end: 0.25rem !important; /* Midnight: --custom-message-meta-space */
+}
+
+/* Show gutter timestamp ONLY on message row hover */
+.dark-theme .module-message:hover .module-message__gutter-timestamp {
+  opacity: 1 !important;
+}
+
+/* Avatar spacer in continuation messages: keep width for alignment, zero height.
+   The AvatarSpacer is a div with inline style height:40 — override with !important.
+   position:relative needed for the absolute gutter timestamp. */
+.dark-theme .module-message--collapsed-above .module-message__author-avatar-container {
+  position: relative !important;
+  height: auto !important;
+  align-self: stretch !important;
+}
+.dark-theme .module-message--collapsed-above .module-message__author-avatar-container > div:not(.module-message__gutter-timestamp) {
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ==========================================================================
+   Text content — Midnight: 16px, line-height 22px, zero extra spacing
+   ========================================================================== */
+.dark-theme .module-message__text,
+.dark-theme .module-message__text--incoming,
+.dark-theme .module-message__text--outgoing {
+  color: var(--midnight-text-normal) !important;
+  font-size: 1rem !important;           /* 16px */
+  line-height: 1.375rem !important;     /* 22px */
+  letter-spacing: normal !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.dark-theme .module-message__text a,
+.dark-theme .module-message__text--incoming a,
+.dark-theme .module-message__text--outgoing a {
+  color: oklab(0.628849 -0.0433247 -0.160221) !important;
+  text-decoration: none !important;
+}
+.dark-theme .module-message__text a:hover,
+.dark-theme .module-message__text--incoming a:hover,
+.dark-theme .module-message__text--outgoing a:hover {
+  text-decoration: underline !important;
+}
+
+/* ==========================================================================
+   Bottom metadata — hover-only, absolute right, aligned with last text line.
+   Anchored to .module-message (position:relative) since container is static.
+   Same right offset as action buttons (14px).
+   ========================================================================== */
+.dark-theme .module-message__metadata {
+  position: absolute !important;
+  right: 14px !important;
+  bottom: var(--midnight-msg-vertical-pad) !important; /* 2px — match row padding */
+  color: var(--midnight-text-muted) !important;
+  font-size: 0.75rem !important;
+  line-height: 1.375rem !important;
+  margin-top: 0 !important;
+  justify-content: flex-end !important;
+  opacity: 0 !important;
+  transition: opacity 0.1s ease-out !important;
+  z-index: 1 !important;
+}
+
+.dark-theme .module-message:hover .module-message__metadata {
+  opacity: 1 !important;
+}
+
+/* Override inline variant — no float/margin needed, absolute handles it */
+.dark-theme .module-message__metadata--inline {
+  float: none !important;
+  margin-top: 0 !important;
+}
+
+.dark-theme .module-message__metadata--outgoing {
+  color: var(--midnight-text-muted) !important;
+}
+
+/* Hide timestamp from bottom metadata — already shown in header/gutter */
+.dark-theme .module-message__metadata__date {
+  display: none !important;
+}
+
+.dark-theme .module-message__metadata__status-icon {
+  opacity: 0.6 !important;
+}
+
+.dark-theme .module-message__metadata__edited {
+  color: var(--midnight-text-muted) !important;
+}
+
+/* ==========================================================================
+   Date header — Midnight-style horizontal line with centered label
+   Midnight: border-top thin solid, text centered on the line,
+   margin-top 1.5rem (24px), margin-bottom 0.5rem (8px) for group-spacing-16.
+   Font: 12px, semibold (600), muted color, border-radius 8px, padding 2px 4px.
+   ========================================================================== */
+.dark-theme .TimelineDateHeader {
+  color: var(--midnight-text-muted) !important;
+  font-size: 0.75rem !important;  /* 12px */
+  font-weight: 600 !important;    /* semibold */
+  line-height: 0.8125rem !important; /* 13px */
+}
+
+.dark-theme .TimelineDateHeader--inline {
+  padding: 0 !important;
+  margin-top: 1.5rem !important;   /* 24px — Midnight divider top margin */
+  margin-bottom: 0.5rem !important; /* 8px — Midnight divider bottom margin (group-spacing-16) */
+  margin-inline: 1rem 0.875rem !important; /* 16px / 14px — Midnight divider margins */
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+/* Horizontal line through the date header (Midnight-style) */
+.dark-theme .TimelineDateHeader--inline::before,
+.dark-theme .TimelineDateHeader--inline::after {
+  content: "" !important;
+  flex: 1 !important;
+  border-bottom: 1px solid var(--midnight-divider) !important;
+}
+
+.dark-theme .TimelineDateHeader--inline::before {
+  margin-right: 0.5rem !important;
+}
+
+.dark-theme .TimelineDateHeader--inline::after {
+  margin-left: 0.5rem !important;
+}
+
+/* Floating date header (sticky at top) */
+.dark-theme .TimelineDateHeader--floating {
+  background-color: var(--midnight-bg-primary) !important;
+  border: 1px solid var(--midnight-divider) !important;
+  border-radius: 8px !important;
+  padding: 2px 8px !important;
+}
+
+.dark-theme .TimelineFloatingHeader {
+  z-index: 3 !important;
+}
+
+/* ==========================================================================
+   Emoji-only & sticker messages
+   ========================================================================== */
+.dark-theme .module-message__container--emoji,
+.dark-theme .module-message__container--sticker-like {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Stickers in conversation: 2x smaller (200px → 100px) */
+.dark-theme .module-image-grid--with-sticker {
+  padding: 4px !important;
+}
+.dark-theme .module-image-grid--with-sticker .module-image {
+  width: 100px !important;
+  height: 100px !important;
+}
+.dark-theme .module-image-grid--with-sticker .module-image__image {
+  max-width: 100px !important;
+  max-height: 100px !important;
+  object-fit: contain !important;
+}
+
+/* ==========================================================================
+   Reactions — Midnight pills
+   Midnight: rounded pill, #1e1f22 bg, 8px padding horizontal, 4px vertical,
+   gap 4px between pills, emoji 16px + count 12px font.
+   "is-me" reactions have blurple border + blurple bg tint.
+   ========================================================================== */
+.dark-theme .module-message__reactions {
+  padding-top: 4px !important;
+  height: auto !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+}
+
+.dark-theme .module-message__reactions--outgoing {
+  align-self: flex-start !important;
+  padding-inline-start: 0 !important;
+  padding-inline-end: 0 !important;
+  margin-inline-end: 0 !important;
+  margin-inline-start: 0 !important;
+}
+
+.dark-theme .module-message__reactions--incoming {
+  padding-inline-start: 0 !important;
+  padding-inline-end: 0 !important;
+  margin-inline-start: 0 !important;
+}
+
+.dark-theme .module-message__reactions__reaction {
+  background: var(--midnight-reaction-bg) !important;
+  border-color: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  padding: 0 6px !important;
+  gap: 4px !important;
+  cursor: pointer !important;
+}
+
+.dark-theme .module-message__reactions__reaction:hover {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.dark-theme .module-message__reactions__reaction--is-me {
+  border-color: rgba(88, 101, 242, 0.6) !important;
+  background: rgba(88, 101, 242, 0.15) !important;
+}
+
+.dark-theme .module-message__reactions__reaction--is-me:hover {
+  border-color: rgba(88, 101, 242, 0.8) !important;
+}
+
+.dark-theme .module-message__reactions__reaction__count {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--midnight-text-normal) !important;
+  margin-inline-start: 2px !important;
+}
+
+.dark-theme .module-message__reactions__reaction--is-me .module-message__reactions__reaction__count {
+  color: #dee0fc !important;
+}
+
+/* Reaction picker — Midnight: dark bg, rounded */
+.dark-theme .module-ReactionPickerPicker {
+  background: var(--midnight-bg-secondary) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  padding: 4px !important;
+}
+
+.dark-theme .module-ReactionPickerPicker__button--more::before {
+  background-color: var(--midnight-channels-default) !important;
+}
+
+.dark-theme .module-ReactionPickerPicker__button--more:hover::before {
+  background-color: var(--midnight-text-normal) !important;
+}
+
+.dark-theme .module-ReactionPickerPicker__button--more {
+  background: var(--midnight-bg-surface-highest) !important;
+}
+
+.dark-theme .module-ReactionPickerPicker__button--more:hover,
+.dark-theme .module-ReactionPickerPicker__button--more:focus {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Reaction viewer modal */
+.dark-theme .module-reaction-viewer {
+  background: var(--midnight-bg-secondary) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+}
+
+.dark-theme .module-reaction-viewer__header__button--selected {
+  background: var(--midnight-bg-surface-highest) !important;
+}
+
+.dark-theme .module-reaction-viewer__header__button__count,
+.dark-theme .module-reaction-viewer__header__button__all {
+  color: var(--midnight-text-normal) !important;
+}
+
+.dark-theme .module-reaction-viewer__body__row__name {
+  color: var(--midnight-text-strong) !important;
+}
+
+/* ==========================================================================
+   Action buttons — Midnight floating toolbar
+   ========================================================================== */
+.dark-theme .module-message__buttons {
+  position: absolute !important;
+  right: 14px !important;
+  top: -16px !important;
+  background: var(--midnight-bg-secondary) !important;
+  border-radius: 4px !important;
+  padding: 2px 4px !important;
+  border: 1px solid var(--midnight-border-subtle) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  z-index: 2 !important;
+}
+
+.dark-theme .module-message__buttons--incoming,
+.dark-theme .module-message__buttons--outgoing {
+  padding-inline: 4px !important;
+  flex-direction: row !important;
+  gap: 6px !important;
+}
+.dark-theme .module-message__buttons--incoming > *,
+.dark-theme .module-message__buttons--outgoing > * {
+  margin-inline-start: 0 !important;
+  margin-inline-end: 0 !important;
+}
+
+/* Keep action buttons visible when any popup/menu is open from them */
+.dark-theme .module-message__buttons:has([data-axo-contextmenu-state='open']),
+.dark-theme .module-message__buttons:has([aria-expanded='true']),
+.dark-theme .module-message__buttons:has([data-state='open']) {
+  opacity: 1 !important;
+}
+
+/* Context menu: delete action always red */
+.dark-theme .MessageContextMenu__delete > [role="menuitem"] {
+  color: #f23f43 !important;
+}
+
+/* Context menu: spacing between items */
+.dark-theme [data-radix-menu-content] > [role="menuitem"] {
+  padding: 8px 12px !important;
+  margin: 1px 0 !important;
+  cursor: pointer !important;
+}
+
+/* Pointer cursor for action buttons, menu items, and composer + button options */
+.dark-theme .module-message__buttons [role="button"],
+.dark-theme .module-message__buttons button,
+.dark-theme [data-radix-menu-content] [role="menuitem"],
+.dark-theme .MessageContextMenu__delete,
+.dark-theme .MessageContextMenu__delete *,
+.dark-theme .CompositionArea__attach-file {
+  cursor: pointer !important;
+}
+
+/* Shift-expanded action buttons — extra icons in the toolbar */
+.dark-theme .module-message__buttons__forward,
+.dark-theme .module-message__buttons__edit,
+.dark-theme .module-message__buttons__copy,
+.dark-theme .module-message__buttons__delete {
+  cursor: pointer;
+  height: 20px;
+  width: 20px;
+  background-color: var(--midnight-text-muted);
+}
+.dark-theme .module-message__buttons__forward:hover,
+.dark-theme .module-message__buttons__edit:hover,
+.dark-theme .module-message__buttons__copy:hover,
+.dark-theme .module-message__buttons__delete:hover {
+  background-color: var(--midnight-text-normal);
+}
+.dark-theme .module-message__buttons__forward {
+  -webkit-mask: url('../images/icons/v3/forward/forward-compact.svg') no-repeat center / contain;
+  mask: url('../images/icons/v3/forward/forward-compact.svg') no-repeat center / contain;
+}
+.dark-theme .module-message__buttons__edit {
+  -webkit-mask: url('../images/icons/v3/edit/edit-compact.svg') no-repeat center / contain;
+  mask: url('../images/icons/v3/edit/edit-compact.svg') no-repeat center / contain;
+}
+.dark-theme .module-message__buttons__copy {
+  -webkit-mask: url('../images/icons/v3/copy/copy-compact.svg') no-repeat center / contain;
+  mask: url('../images/icons/v3/copy/copy-compact.svg') no-repeat center / contain;
+}
+.dark-theme .module-message__buttons__delete {
+  -webkit-mask: url('../images/icons/v3/trash/trash-compact.svg') no-repeat center / contain;
+  mask: url('../images/icons/v3/trash/trash-compact.svg') no-repeat center / contain;
+}
+.dark-theme .module-message__buttons__delete {
+  background-color: #f23f43 !important;
+}
+.dark-theme .module-message__buttons__delete:hover {
+  background-color: #ff5c5f !important;
+}
+
+/* ==========================================================================
+   Composition area — Midnight Midnight input bar
+   Matches midnight.html structure:
+     scrollableContainer (pill #1e1f22, 8px radius)
+       attachButton (+, 20px icon, far left)
+       textArea (height: 56px, centered)
+       buttons (emoji 18px, GIF 20px, stickers 20px — far right)
+   We make the ROW the pill. Buttons reordered via CSS order.
+   ========================================================================== */
+
+/* --- Outer container: #000 bg, 24px bottom breathing room --- */
+.dark-theme .CompositionArea {
+  background-color: var(--midnight-bg-primary) !important;
+  padding: 0 8px 8px 8px !important;
+  min-height: unset !important;
+}
+.dark-theme .ConversationView__composition-area {
+  background-color: var(--midnight-bg-primary) !important;
+  border-top: none !important;
+}
+
+/* --- Hide the expand toggle — not a Midnight feature --- */
+.dark-theme .CompositionArea__toggle-large {
+  display: none !important;
+}
+
+/* --- Main input row = the unified pill ---
+   Midnight: .channelTextArea__74017 + .scrollableContainer__74017.themedBackground__74017
+   Midnight: background = var(--chat-background-default) = hsl(220 7.3% 8%) ≈ #131416
+             border = 1px solid var(--border-muted) = hsla(240 4% 61% / 0.16)
+             border-radius = var(--radius-sm) = 8px */
+.dark-theme .CompositionArea__row:not(.CompositionArea__row--column):not(.CompositionArea__row--control-row) {
+  background-color: hsl(220 7.3% 8%) !important;
+  border: 1px solid hsla(240 4% 61% / 0.16) !important;
+  border-radius: 8px !important;
+  align-items: center !important;
+  padding: 0 !important;
+}
+
+/* --- Input element: transparent (row is the pill) --- */
+.dark-theme .module-composition-input__input {
+  background-color: transparent !important;
+  border-radius: 0 !important;
+  border: none !important;
+  color: var(--midnight-text-normal) !important;
+  font-size: 1rem !important;       /* Midnight: 16px */
+  line-height: 1.375rem !important;  /* Midnight: 22px */
+}
+
+/* --- Input wrapper: fill space, kill Signal's 6px margin --- */
+.dark-theme .CompositionArea__input {
+  margin: 0 !important;
+  order: 0 !important; /* center position */
+}
+
+/* --- Scroller: match Midnight's textArea ---
+   Midnight: textArea has height: 56px, text 16px/22px.
+   Inner padding = (56-22)/2 = 17px top & bottom → pill = 56px.
+   Clamped to 44px min via min-height: 0 (content dictates).
+   Midnight allows expand to ~12 lines on shift-enter (12 * 22px = 264px). */
+.dark-theme .module-composition-input__input__scroller {
+  min-height: 0 !important;
+  max-height: 264px !important; /* 12 lines × 22px line-height */
+  padding: 12px 0 !important;
+}
+
+/* --- Quill wrapper: Midnight uses ~16px horizontal padding inside textArea --- */
+.dark-theme .module-composition-input__quill {
+  padding-inline: 18px !important;
+}
+
+/* --- Quill container font: Signal defaults to font-body-1 (14px/20px),
+   Midnight uses 16px/22px with weight 400 --- */
+.dark-theme .module-composition-input__input .ql-container {
+  font-size: 1rem !important;         /* 16px — Midnight input font */
+  line-height: 1.375rem !important;   /* 22px */
+  font-weight: 400 !important;        /* Midnight: normal weight in compose */
+  letter-spacing: normal !important;  /* kill Signal's -0.08px */
+}
+
+/* --- Placeholder --- */
+.dark-theme .module-composition-input__input .ql-blank::before {
+  color: var(--midnight-input-placeholder) !important;
+  font-style: normal !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
+}
+
+/* ==========================================================================
+   Button layout via CSS order (mic hidden):
+   Result:  [+attach] [____input____] [emoji/sticker] [quality?] [send]
+   Midnight: [+attach] [____input____] [gift] [GIF] [stickers] [emoji] [apps]
+   ========================================================================== */
+
+/* All button cells: tight spacing, centered */
+.dark-theme .CompositionArea__button-cell {
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+  padding: 0 4px !important;
+}
+
+/* Attach → far left (Midnight's + button)
+   The attach button is ALWAYS the last child of the row in DOM order.
+   Works for both variants: plain .CompositionArea__attach-file
+   and AxoDropdownMenu (when polls are enabled). */
+.dark-theme .CompositionArea__row:not(.CompositionArea__row--column):not(.CompositionArea__row--control-row) > .CompositionArea__button-cell:last-child {
+  order: -1 !important;
+  padding-inline-start: 8px !important;
+}
+
+/* Emoji → right of input (1st) */
+.dark-theme .CompositionArea__button-cell--emoji {
+  order: 1 !important;
+}
+
+/* Sticker → after emoji (2nd) */
+.dark-theme .CompositionArea__button-cell--sticker {
+  order: 2 !important;
+}
+
+/* GIF → after sticker (3rd) */
+.dark-theme .CompositionArea__button-cell--gif {
+  order: 3 !important;
+}
+
+/* MediaQuality → after GIF */
+.dark-theme .CompositionArea__button-cell:has(.MediaQualitySelector__button) {
+  order: 4 !important;
+}
+
+/* Send → far right */
+.dark-theme .CompositionArea__button-cell:has(.CompositionArea__send-button) {
+  order: 5 !important;
+  padding-inline-end: 8px !important;
+}
+
+/* ==========================================================================
+   Button icons — all use CSS mask, so color = background-color
+   Midnight: idle #7a7b83 (channels-default), hover #dcdcdf (text-normal)
+   ========================================================================== */
+
+/* --- Attach file (+) — both variants --- */
+
+/* Plain variant (.CompositionArea__attach-file button) */
+.dark-theme .CompositionArea__attach-file {
+  background: transparent !important;
+  border: none !important;
+}
+.dark-theme .CompositionArea__attach-file::before {
+  background-color: var(--midnight-channels-default) !important;
+}
+.dark-theme .CompositionArea__attach-file:hover::before {
+  background-color: var(--midnight-text-normal) !important;
+}
+
+/* AxoDropdownMenu variant (polls enabled) — the + icon uses currentColor */
+.dark-theme .CompositionArea__row > .CompositionArea__button-cell:last-child button,
+.dark-theme .CompositionArea__row > .CompositionArea__button-cell:last-child [role="button"] {
+  color: var(--midnight-channels-default) !important;
+  background: transparent !important;
+  border: none !important;
+  min-width: 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+}
+.dark-theme .CompositionArea__row > .CompositionArea__button-cell:last-child button:hover,
+.dark-theme .CompositionArea__row > .CompositionArea__button-cell:last-child [role="button"]:hover {
+  color: var(--midnight-text-normal) !important;
+  background: transparent !important;
+}
+
+/* --- FunPicker (emoji/sticker) — icon is a CSS mask via color-svg --- */
+.dark-theme .FunButton {
+  background: transparent !important;
+  border: none !important;
+}
+.dark-theme .FunButton[aria-expanded='true'] {
+  background: transparent !important; /* kill Signal's gray bg when open */
+}
+.dark-theme .FunButton__Icon {
+  background-color: var(--midnight-channels-default) !important;
+}
+.dark-theme .FunButton:hover .FunButton__Icon {
+  background-color: var(--midnight-text-normal) !important;
+}
+
+/* --- GIF picker button icon — uses Midnight SVG mask (defined in SVG icons section below) --- */
+.dark-theme .FunButton__Icon--GifPicker {
+  /* Kill the old text-based "GIF" approach */
+  font-size: 0 !important;
+  letter-spacing: 0 !important;
+  color: transparent !important;
+}
+.dark-theme .FunButton__Icon--GifPicker::after {
+  content: none !important;
+}
+.dark-theme .FunButton:hover .FunButton__Icon--GifPicker {
+  background-color: var(--midnight-text-normal) !important;
+  color: transparent !important;
+}
+
+/* --- Microphone: hidden from compose bar ---
+   Midnight doesn't have a mic in the compose bar.
+   User wants voice messages accessible via the + menu (requires TSX change). */
+.dark-theme .CompositionArea__button-cell:has(.AudioCapture) {
+  display: none !important;
+}
+
+/* --- Send button --- */
+.dark-theme .CompositionArea__send-button {
+  background: transparent !important;
+  border: none !important;
+}
+.dark-theme .CompositionArea__send-button::after {
+  background-color: var(--midnight-channels-default) !important;
+}
+.dark-theme .CompositionArea__send-button:hover::after {
+  background-color: var(--midnight-text-normal) !important;
+}
+.dark-theme .CompositionArea__send-button:disabled::after {
+  background-color: var(--midnight-channels-default) !important;
+  opacity: 0.4 !important;
+}
+
+/* --- Media quality selector --- */
+.dark-theme .MediaQualitySelector__button {
+  background: transparent !important;
+  border: none !important;
+}
+.dark-theme .MediaQualitySelector__button::before {
+  background-color: var(--midnight-channels-default) !important;
+}
+.dark-theme .MediaQualitySelector__button:hover::before {
+  background-color: var(--midnight-text-normal) !important;
+}
+
+/* ==========================================================================
+   Above-pill elements: quote, attachments, link preview
+   ========================================================================== */
+
+.dark-theme .CompositionArea__row--column {
+  background: transparent !important;
+}
+.dark-theme .CompositionArea .quote-wrapper {
+  background-color: var(--midnight-bg-secondary) !important;
+  border-radius: 8px 8px 0 0 !important;
+  border: none !important;
+  padding: 8px !important;
+  margin-bottom: 0 !important;
+}
+.dark-theme .CompositionArea__attachment-list {
+  background-color: var(--midnight-bg-secondary) !important;
+  border-radius: 8px 8px 0 0 !important;
+  border: none !important;
+}
+.dark-theme .CompositionInput__link-preview {
+  background-color: var(--midnight-bg-secondary) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+}
+.dark-theme .CompositionInput__link-preview__close-button {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ==========================================================================
+   Popovers: format menu, suggestions/mentions
+   ========================================================================== */
+
+.dark-theme .module-composition-input__format-menu {
+  background: var(--midnight-bg-secondary) !important;
+  border: 1px solid var(--midnight-border-subtle) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+.dark-theme .module-composition-input__format-menu__item::before {
+  background-color: var(--midnight-channels-default) !important;
+}
+.dark-theme .module-composition-input__format-menu__item:hover::before {
+  background-color: var(--midnight-text-normal) !important;
+}
+.dark-theme .module-composition-input__format-menu__item--active::before {
+  background-color: var(--midnight-text-link) !important;
+}
+.dark-theme .module-composition-input__format-menu__item__popover {
+  background-color: var(--midnight-bg-secondary) !important;
+  color: var(--midnight-text-normal) !important;
+  border-radius: 4px !important;
+}
+
+.dark-theme .module-composition-input__suggestions {
+  background: var(--midnight-bg-secondary) !important;
+  border: 1px solid var(--midnight-border-subtle) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+.dark-theme .module-composition-input__suggestions__row {
+  color: var(--midnight-text-normal) !important;
+}
+.dark-theme .module-composition-input__suggestions__row:hover,
+.dark-theme .module-composition-input__suggestions__row--selected {
+  background: var(--midnight-bg-hover) !important;
+  color: var(--midnight-text-strong) !important;
+}
+
+/* ==========================================================================
+   Recording & edit states
+   ========================================================================== */
+
+.dark-theme .CompositionRecording {
+  background-color: var(--midnight-input-bg) !important;
+  border-radius: 8px !important;
+  padding-inline: 12px !important;
+}
+.dark-theme .CompositionRecording__wave {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+}
+.dark-theme .module-composition-input__editing-message {
+  color: var(--midnight-text-muted) !important;
+  background: transparent !important;
+}
+.dark-theme .CompositionArea__edit-button--discard {
+  background-color: var(--midnight-channels-default) !important;
+}
+.dark-theme .CompositionArea__edit-button--accept {
+  background-color: #5865f2 !important;
+}
+.dark-theme .CompositionArea__edit-button--accept:disabled {
+  opacity: 0.4 !important;
+}
+
+/* ==========================================================================
+   Quotes / Replies — Midnight-style
+   Midnight reply: 14px font, 18px line-height, 4px bottom margin,
+   2px spine width, 6px spine border-radius
+   ========================================================================== */
+.dark-theme .module-quote {
+  border-radius: 4px !important;
+  font-size: 0.875rem !important;  /* 14px */
+}
+
+/* Override ALL quote color variants (incoming/outgoing/compose × every conversation color) */
+.dark-theme [class*="module-quote--incoming"],
+.dark-theme [class*="module-quote--outgoing"],
+.dark-theme [class*="module-quote--compose"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-image: none !important;
+}
+
+/* Quote spine — Midnight uses a muted gray, not Signal's blurple */
+.dark-theme [class*="module-quote"] .module-quote__primary,
+.dark-theme [class*="module-quote"] .module-quote__reference-warning {
+  border-inline-start-color: var(--midnight-text-muted) !important;
+}
+
+/* ==========================================================================
+   Link previews — Midnight embed style
+   ========================================================================== */
+.dark-theme .module-message__link-preview {
+  background-color: #060607 !important;
+  border: 1px solid var(--midnight-border-subtle) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  margin: 4px 0 !important;
+  width: 100% !important;
+}
+
+/* Link preview containers: don't let the inline width constrain the author row —
+   override the JS-set width so the container sizes naturally */
+.dark-theme .module-message__container[style*="width"] {
+  width: auto !important;
+  max-width: 400px !important;
+}
+
+/* ==========================================================================
+   Image attachments — Midnight-style: rounded corners, proper spacing
+   ========================================================================== */
+.dark-theme .module-message__attachment-container {
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+  margin-inline: 0 !important;
+  text-align: start !important;
+  background-color: transparent !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+.dark-theme .module-message__img-attachment {
+  border-radius: 8px !important;
+  margin-bottom: 0 !important;  /* Signal adds -3px */
+}
+
+.dark-theme .module-image-grid {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+/* Remove Signal's inset box-shadow border on images */
+.dark-theme .module-image__border-overlay,
+.dark-theme .module-image__border-overlay--with-border {
+  box-shadow: none !important;
+}
+
+/* Image metadata overlay (no-caption images) — remove Signal's absolute bottom overlay */
+.dark-theme .module-message__metadata--with-image-no-caption {
+  position: absolute !important;
+  bottom: 2px !important;
+  right: 14px !important;
+}
+
+.dark-theme .module-message__simple-attachment {
+  background-color: var(--midnight-bg-secondary) !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--midnight-border-subtle) !important;
+}
+
+.dark-theme .module-message__simple-attachment__file-name,
+.dark-theme .module-message__simple-attachment__file-name--incoming {
+  color: var(--midnight-text-link) !important;
+}
+
+.dark-theme .module-message__simple-attachment__file-size,
+.dark-theme .module-message__simple-attachment__file-size--incoming {
+  color: var(--midnight-text-muted) !important;
+}
+
+/* ==========================================================================
+   Scrollbar — Midnight thin dark
+   ========================================================================== */
+.dark-theme .ConversationView__timeline::-webkit-scrollbar {
+  width: 8px !important;
+}
+.dark-theme .ConversationView__timeline::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.dark-theme .ConversationView__timeline::-webkit-scrollbar-thumb {
+  background-color: var(--midnight-scrollbar-thumb) !important; /* #595a63 (neutral-47) */
+  border-radius: 4px !important;
+}
+.dark-theme .ConversationView__timeline::-webkit-scrollbar-thumb:hover {
+  background-color: #7a7b83 !important; /* slightly lighter on hover */
+}
+
+/* ==========================================================================
+   Deleted messages
+   ========================================================================== */
+.dark-theme .module-message__container--deleted-for-everyone {
+  background-color: transparent !important;
+  border: none !important;
+}
+.dark-theme .module-message__text--delete-for-everyone {
+  color: var(--midnight-text-muted) !important;
+  font-style: italic !important;
+}
+
+/* ==========================================================================
+   Selection / focus / targeted states — disable click-to-highlight
+   ========================================================================== */
+.dark-theme .module-message__container--targeted,
+.dark-theme .module-message__container--targeted-lighter {
+  animation: none !important;
+}
+
+/* Select mode: shift outgoing messages too (they're left-aligned in Midnight) */
+.dark-theme .module-message__wrapper--select-mode .module-message--outgoing {
+  translate: calc(16px + 22px) 0 !important;
+}
+
+.dark-theme .module-message__wrapper--selected {
+  background: transparent !important;
+}
+
+/* ==========================================================================
+   Unread indicator — Midnight "NEW" red separator
+   Midnight: red line across full width, "NEW" label in red on the right.
+   Signal structure: bar div (line) + text div (count) stacked vertically.
+   We restyle to look like Midnight's red separator.
+   ========================================================================== */
+.dark-theme .module-last-seen-indicator {
+  padding-top: 24px !important;
+  padding-bottom: 8px !important; /* less bottom padding than Signal's 35px */
+  margin-inline: 16px 14px !important; /* match Midnight divider margins */
+  user-select: none !important;
+  position: relative !important;
+}
+
+.dark-theme .module-last-seen-indicator__bar {
+  background-color: #f23f42 !important; /* Midnight danger/red */
+  height: 1px !important;
+  width: 100% !important;
+}
+
+.dark-theme .module-last-seen-indicator__text {
+  position: absolute !important;
+  top: 24px !important; /* align with the bar */
+  right: 0 !important;
+  transform: translateY(-50%) !important; /* center on the line */
+  margin-top: 0 !important;
+  color: #f23f42 !important; /* Midnight red */
+  font-size: 0.6875rem !important; /* 11px */
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-align: end !important;
+  padding-inline-start: 4px !important;
+  background-color: var(--midnight-bg-primary) !important; /* cut through the line */
+}
+
+/* ==========================================================================
+   Typing indicator — Midnight-style
+   Midnight shows "username is typing..." as small text at the bottom of the
+   chat, overlapping the top of the compose area. Signal uses an animated
+   bubble. We restyle to match Midnight's compact text-like appearance.
+   ========================================================================== */
+
+/* Container: minimal height, positioned at very bottom of timeline */
+.dark-theme .module-timeline__typing-bubble-container {
+  height: 24px !important;
+  min-height: 0 !important;
+}
+
+.dark-theme .module-message__container-outer--typing-bubble {
+  background: transparent !important;
+}
+
+/* The typing message row: 24px height, aligned with message content area (right of gutter) */
+.dark-theme .module-message--typing-bubble {
+  height: 24px !important;
+  min-height: 0 !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  align-items: center !important;
+}
+
+.dark-theme .module-message--typing-bubble .module-message__container--incoming {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Hide group avatars in typing bubble — dots appear in message content area */
+.dark-theme .module-message--typing-bubble .module-message__author-avatar-container--typing {
+  display: none !important;
+}
+
+/* Typing dots: Midnight muted color, slightly smaller */
+.dark-theme .module-typing-animation__dot--light {
+  background-color: var(--midnight-text-strong) !important;
+  width: 6px !important;
+  height: 6px !important;
+}
+
+/* Typing animation container: compact, vertically centered in 24px row */
+.dark-theme .module-message__typing-animation-container {
+  padding: 0 8px !important;
+  min-height: auto !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* ==========================================================================
+   Error container
+   ========================================================================== */
+.dark-theme .module-message__error-container {
+  min-width: 20px !important;
+}
+
+/* ==========================================================================
+   Conversation list (left sidebar) — Midnight Midnight DM list
+   Computed from Midnight Midnight visual-refresh:
+     channel: height 40px, padding 1px 0, borderRadius 8px, margin 0 0 0 8px
+     link: padding 8px 16px 8px 8px, gap 8px, display flex, alignItems center
+     interactiveSelected bg: rgba(148, 149, 157, 0.24)
+     name: 16px/20px weight 500, color ~#81828b (channels-default)
+     subText: 16px, weight 400, color muted
+     avatar: 32px, margin-right 12px
+   ========================================================================== */
+.dark-theme .module-conversation-list {
+  background-color: var(--midnight-bg-primary) !important;
+  padding: 0 8px 0 8px !important; /* Midnight: symmetric 8px left/right margin */
+}
+
+/* Conversation list item — pill style matching CallsList/ListTile */
+.dark-theme .module-conversation-list__item--contact-or-conversation {
+  border: 2px solid transparent !important;
+  border-width: 2px 10px !important;
+  background-clip: padding-box !important;
+  border-radius: 20px / 12px !important;
+  padding: 6px 14px !important;
+  margin-block: 0 !important;
+  background-color: transparent !important;
+  position: relative !important;
+  height: 64px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.dark-theme .module-conversation-list__item--contact-or-conversation:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Selected item */
+.dark-theme .module-conversation-list__item--contact-or-conversation--is-selected {
+  background-color: rgba(148, 149, 157, 0.24) !important;
+}
+
+/* Selected + hover slightly brighter */
+.dark-theme .module-conversation-list__item--contact-or-conversation--is-selected:hover {
+  background-color: rgba(148, 149, 157, 0.32) !important;
+}
+
+/* Contact name — ListTile size, Midnight color + font */
+.dark-theme .module-conversation-list__item--contact-or-conversation__content__header__name {
+  font-family: var(--midnight-font) !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  font-weight: 500 !important;
+  color: var(--midnight-channels-default) !important; /* #7a7b83 */
+}
+
+/* Selected item name → brighter */
+.dark-theme .module-conversation-list__item--contact-or-conversation--is-selected .module-conversation-list__item--contact-or-conversation__content__header__name {
+  color: var(--midnight-text-strong) !important; /* #e4e4e6 */
+}
+
+/* Timestamp — Midnight font, vertically aligned with name */
+.dark-theme .module-conversation-list__item--contact-or-conversation__content__header__date {
+  font-family: var(--midnight-font) !important;
+  font-size: 12px !important;
+  line-height: 20px !important; /* same as name for vertical alignment */
+  align-self: center !important;
+}
+
+/* Message preview / subtext — match ListTile__subtitle (12px/17px, gray-25) */
+.dark-theme .module-conversation-list__item--contact-or-conversation__content__message__text {
+  font-size: 12px !important;
+  line-height: 17px !important;
+}
+.dark-theme .module-conversation-list__item--contact-or-conversation__content__message__text--always-full-size {
+  height: auto !important;
+}
+
+/* Unread count badge — Midnight: red notification badge */
+.dark-theme .module-conversation-list__item--contact-or-conversation__unread-indicator {
+  background-color: #f23f42 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 0.6875rem !important;
+  font-weight: 700 !important;
+  min-width: 16px !important;
+  height: 16px !important;
+}
+
+/* Avatar size — Midnight DM list uses 32px avatars */
+.dark-theme .module-conversation-list__item--contact-or-conversation__avatar-container .module-Avatar,
+.dark-theme .module-conversation-list__item--contact-or-conversation__avatar-container .module-Avatar__contents {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+}
+
+/* Content area — Midnight: overflow hidden, min-width 0, vertically centered */
+.dark-theme .module-conversation-list__item--contact-or-conversation__content {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  justify-content: center !important; /* vertical center (flex-direction: column) */
+}
+
+/* Archive button */
+.dark-theme .module-conversation-list__item--archive-button {
+  color: var(--midnight-text-muted) !important;
+  border-radius: 8px !important;
+}
+
+.dark-theme .module-conversation-list__item--archive-button:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Left pane header */
+.dark-theme .module-left-pane__header {
+  background-color: var(--midnight-bg-primary) !important;
+}
+
+/* Left pane footer (gradient) */
+.dark-theme .module-left-pane__footer {
+  background: linear-gradient(transparent, var(--midnight-bg-primary)) !important;
+}
+
+/* Search input in left pane */
+.dark-theme .LeftPaneSearchInput__container {
+  background-color: var(--midnight-bg-surface-highest) !important; /* #1e1f22 */
+  border: none !important;
+  border-radius: 4px !important;
+}
+
+.dark-theme .LeftPaneSearchInput__input {
+  color: var(--midnight-text-normal) !important;
+}
+
+.dark-theme .LeftPaneSearchInput__input::placeholder {
+  color: var(--midnight-input-placeholder) !important;
+}
+
+/* NavSidebar collapse toggle — bottom-right corner */
+.dark-theme .NavSidebar__CollapseToggle {
+  position: absolute;
+  bottom: 16px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+  padding: 0;
+  -webkit-mask: url('../images/icons/v3/chevron/chevron-left.svg') no-repeat center / 16px 16px;
+  mask: url('../images/icons/v3/chevron/chevron-left.svg') no-repeat center / 16px 16px;
+  background-color: var(--midnight-text-muted);
+}
+.dark-theme .NavSidebar:hover .NavSidebar__CollapseToggle,
+.dark-theme .NavSidebar__CollapseToggle--collapsed {
+  opacity: 1;
+}
+.dark-theme .NavSidebar__CollapseToggle:hover {
+  background-color: var(--midnight-text-normal);
+}
+.dark-theme .NavSidebar__CollapseToggle--collapsed {
+  -webkit-mask-image: url('../images/icons/v3/chevron/chevron-right.svg');
+  mask-image: url('../images/icons/v3/chevron/chevron-right.svg');
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.6;
+}
+.dark-theme .NavSidebar__CollapseToggle--collapsed:hover {
+  opacity: 1;
+}
+
+/* NavSidebar collapsed state */
+.dark-theme .NavSidebar[style*="width: 28"] {
+  overflow: hidden !important;
+  min-width: 0 !important;
+}
+.dark-theme .NavSidebar[style*="width: 28"] .NavSidebar__Header,
+.dark-theme .NavSidebar[style*="width: 28"] .NavSidebar__Content,
+.dark-theme .NavSidebar[style*="width: 28"] .NavSidebar__DragHandle {
+  display: none !important;
+}
+
+/* NavSidebar tabs */
+.dark-theme .NavSidebar__Item {
+  border-radius: 4px !important;
+}
+
+.dark-theme .NavSidebar__Item:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark-theme .NavSidebar__ItemLabel {
+  color: var(--midnight-channels-default) !important;
+}
+
+.dark-theme .NavSidebar__Item--selected .NavSidebar__ItemLabel {
+  color: var(--midnight-text-strong) !important;
+}
+
+/* ==========================================================================
+   Conversation header
+   ========================================================================== */
+.dark-theme .module-ConversationHeader__button::before {
+  background-color: var(--midnight-channels-default) !important;
+}
+.dark-theme .module-ConversationHeader__button:hover::before {
+  background-color: var(--midnight-text-strong) !important;
+}
+
+.dark-theme .module-ConversationHeader__header__info__title {
+  color: var(--midnight-text-strong) !important;
+}
+.dark-theme .module-ConversationHeader__header__info__subtitle {
+  color: var(--midnight-text-muted) !important;
+  align-items: baseline;
+}
+.dark-theme .module-ConversationHeader__header__info__subtitle__verified {
+  align-items: baseline;
+}
+.dark-theme .module-ConversationHeader__header__info__subtitle__last-active {
+  color: var(--midnight-text-muted);
+  font-size: 11px;
+  opacity: 0.7;
+  margin-inline-start: 8px;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Context menus / Dropdowns — Midnight Midnight
+   Midnight: bg #131416, rounded 4px, font 14px/18px, padding 6px 8px per item,
+   hover = blurple #5865f2 bg with white text, 2px block padding on container.
+   ========================================================================== */
+
+/* Signal's ContextMenu component */
+.dark-theme .ContextMenu__popper {
+  background: var(--midnight-bg-secondary) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24) !important;
+  padding-block: 6px !important;
+}
+
+.dark-theme .ContextMenu__option--container {
+  padding-block: 6px !important;
+  padding-inline: 8px !important;
+  border-radius: 2px !important;
+  margin-inline: 4px !important;
+  color: var(--midnight-text-normal) !important;
+  font-size: 14px !important;
+  line-height: 18px !important;
+}
+
+.dark-theme .ContextMenu__option:hover .ContextMenu__option--container,
+.dark-theme .ContextMenu__option--focused .ContextMenu__option--container {
+  background-color: #5865f2 !important;
+  color: #ffffff !important;
+}
+
+.dark-theme .ContextMenu__option--icon {
+  color: var(--midnight-channels-default) !important;
+}
+
+.dark-theme .ContextMenu__option:hover .ContextMenu__option--icon {
+  color: #ffffff !important;
+}
+
+.dark-theme .ContextMenu__divider {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  margin: 4px !important;
+}
+
+.dark-theme .ContextMenu__title {
+  color: var(--midnight-text-muted) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  padding-inline: 8px !important;
+  margin-bottom: 4px !important;
+}
+
+/* Danger items (delete, etc.) */
+.dark-theme .ContextMenu__option--container[class*="danger"],
+.dark-theme .ContextMenu__option--container:has([class*="danger"]) {
+  color: #f23f42 !important;
+}
+
+.dark-theme .ContextMenu__option:hover .ContextMenu__option--container[class*="danger"] {
+  background-color: #f23f42 !important;
+  color: #ffffff !important;
+}
+
+/* AxoDropdownMenu (used in + attach menu, etc.) */
+.dark-theme [data-radix-popper-content-wrapper] {
+  z-index: 125 !important;
+}
+
+.dark-theme [role="menu"][class*="AxoDropdownMenu"],
+.dark-theme [data-radix-menu-content] {
+  background: var(--midnight-bg-secondary) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24) !important;
+  padding: 6px 4px !important;
+}
+
+.dark-theme [role="menuitem"] {
+  border-radius: 2px !important;
+  padding: 6px 8px !important;
+  font-size: 14px !important;
+  line-height: 18px !important;
+  color: var(--midnight-text-normal) !important;
+}
+
+.dark-theme [role="menuitem"]:hover,
+.dark-theme [role="menuitem"][data-highlighted] {
+  background-color: #5865f2 !important;
+  color: #ffffff !important;
+}
+
+.dark-theme [role="menuitem"]:hover [class*="Symbol"],
+.dark-theme [role="menuitem"][data-highlighted] [class*="Symbol"] {
+  color: #ffffff !important;
+}
+
+/* ==========================================================================
+   System messages
+   ========================================================================== */
+.dark-theme .SystemMessage {
+  color: var(--midnight-text-muted) !important;
+}
+
+/* ==========================================================================
+   Risibank Collection Browser — Midnight Midnight style
+   ========================================================================== */
+.risibank-browser {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px;
+}
+
+.risibank-browser__search {
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.risibank-browser__search-input {
+  width: 100%;
+  padding: 8px 10px;
+  background-color: #1e1f22;
+  border: none;
+  border-radius: 6px;
+  color: #dcdcdf;
+  font-size: 13px;
+  font-family: var(--midnight-font);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.risibank-browser__search-input::placeholder {
+  color: #73747d;
+}
+
+.risibank-browser__search-input:focus {
+  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.5);
+}
+
+.risibank-browser__content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.risibank-browser__content::-webkit-scrollbar {
+  width: 6px;
+}
+.risibank-browser__content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.risibank-browser__content::-webkit-scrollbar-thumb {
+  background-color: #595a63;
+  border-radius: 3px;
+}
+
+.risibank-browser__loading,
+.risibank-browser__empty {
+  color: #9d9ea5;
+  text-align: center;
+  padding: 24px 12px;
+  font-size: 13px;
+}
+
+.risibank-browser__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 8px;
+}
+
+.risibank-browser__card {
+  background-color: #111214;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.risibank-browser__card:hover {
+  background-color: #1e1f22;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.risibank-browser__card-previews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  aspect-ratio: 2 / 1;
+  background-color: #0a0a0b;
+  padding: 4px;
+}
+
+.risibank-browser__card-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 4px;
+}
+
+.risibank-browser__card-info {
+  padding: 8px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.risibank-browser__card-name {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.risibank-browser__card-meta {
+  color: #8a8b93;
+  font-size: 11px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.risibank-browser__card-count::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 3px;
+  vertical-align: -2px;
+  background-color: #8a8b93;
+  -webkit-mask: url('../images/icons/v3/grid/grid.svg') no-repeat center / contain;
+  mask: url('../images/icons/v3/grid/grid.svg') no-repeat center / contain;
+}
+
+/* -- Install button (shared between grid & detail) -- */
+
+.risibank-browser__install-btn {
+  padding: 5px 12px;
+  background-color: #5865f2;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--midnight-font);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.risibank-browser__install-btn:hover:not(:disabled) {
+  background-color: #4752c4;
+}
+
+.risibank-browser__install-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Risibank Collection Detail View
+   ========================================================================== */
+.risibank-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.risibank-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.risibank-detail__back {
+  background: none;
+  border: none;
+  color: #dcdcdf;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.risibank-detail__back:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.risibank-detail__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.risibank-detail__name {
+  color: #e4e4e6;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.risibank-detail__author {
+  color: #9d9ea5;
+  font-size: 12px;
+}
+
+.risibank-detail__install-btn {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.risibank-detail__stickers {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  align-content: start;
+}
+
+.risibank-detail__stickers::-webkit-scrollbar {
+  width: 6px;
+}
+.risibank-detail__stickers::-webkit-scrollbar-track {
+  background: transparent;
+}
+.risibank-detail__stickers::-webkit-scrollbar-thumb {
+  background-color: #595a63;
+  border-radius: 3px;
+}
+
+.risibank-detail__sticker-img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background-color: #1e1f22;
+  border-radius: 6px;
+  display: block;
+}
+
+/* ==========================================================================
+   Risibank — Section divider & labels (Collections / Stickers)
+   ========================================================================== */
+.risibank-browser__divider {
+  height: 1px;
+  background-color: #3b3c43;
+  margin: 12px 0 8px;
+}
+
+.risibank-browser__section-label {
+  color: #9d9ea5;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+/* ==========================================================================
+   Risibank — Individual sticker grid (6 columns, card-like items)
+   ========================================================================== */
+.risibank-browser__sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+/* Single-preview variant: one image fills the entire preview area */
+.risibank-browser__card-previews--single {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* Sticker card: pointer cursor for install-on-click */
+.risibank-browser__card--sticker {
+  cursor: pointer;
+}
+
+.risibank-browser__card--sticker:hover {
+  background-color: #2b2d31;
+}
+
+/* Installed state — muted, not clickable */
+.risibank-browser__card--installed {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.risibank-browser__card--installed:hover {
+  background-color: #1e1f22;
+}
+
+.risibank-browser__install-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ==========================================================================
+   Midnight SVG Icons — Compose Toolbar
+   Uses actual Midnight assets: SVG files + sprite sheet from midnight.html.
+   ========================================================================== */
+
+/* Plus (+) attach button — Midnight's plus icon SVG */
+.dark-theme .CompositionArea__attach-file::before {
+  -webkit-mask-image: url('../images/icons/midnight/plus.svg') !important;
+  mask-image: url('../images/icons/midnight/plus.svg') !important;
+}
+
+/* Emoji (smiley face) — Midnight's sprite sheet, row 2 col 3
+   Sprite: 960x192, 48px cells (20 cols × 4 rows).
+   Icon is 20×20 → each cell = 20px → mask-size: 400px 80px.
+   Cell (2,3): x=3×20=60, y=2×20=40 → mask-position: -60px -40px. */
+.dark-theme .FunButton__Icon--FunPicker,
+.dark-theme .FunButton__Icon--EmojiPicker {
+  -webkit-mask-image: url('../images/icons/midnight/emoji-sprite.png') !important;
+  mask-image: url('../images/icons/midnight/emoji-sprite.png') !important;
+  -webkit-mask-size: 400px 80px !important;
+  mask-size: 400px 80px !important;
+  -webkit-mask-position: -60px -40px !important;
+  mask-position: -60px -40px !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+}
+
+/* Sticker icon — Midnight's Lottie SVG (extracted from midnight.html) */
+.dark-theme .FunButton__Icon--StickerPicker {
+  -webkit-mask-image: url('../images/icons/midnight/sticker.svg') !important;
+  mask-image: url('../images/icons/midnight/sticker.svg') !important;
+}
+
+/* GIF icon — Midnight's Lottie SVG (extracted from midnight.html) */
+.dark-theme .FunButton__Icon--GifPicker {
+  display: block !important;
+  -webkit-mask-image: url('../images/icons/midnight/gif.svg') !important;
+  mask-image: url('../images/icons/midnight/gif.svg') !important;
+  background-color: var(--midnight-channels-default) !important;
+  -webkit-mask-size: contain !important;
+  mask-size: contain !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+}
+
+/* (Conversation List Polish rules consolidated into main section above) */
+
+/* ==========================================================================
+   Code Blocks — Midnight-style dark background, full-width, horizontal scroll
+   Rendered from MessageTextRenderer when monospace + multiline is detected.
+   ========================================================================== */
+
+/* Full code block: pre element with language header */
+.dark-theme pre.codeblock {
+  background-color: #2b2d31 !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 4px !important;
+  padding: 8px 12px !important;
+  margin: 4px 0 !important;
+  font-family: "Consolas", "Andale Mono", "Courier New", monospace !important;
+  font-size: 0.875rem !important;     /* 14px — Midnight code font */
+  line-height: 1.125rem !important;   /* 18px */
+  white-space: pre !important;
+  overflow-x: auto !important;
+  max-width: 100% !important;
+  display: block !important;
+  word-wrap: normal !important;
+  color: var(--midnight-text-normal) !important;
+  position: relative !important;
+}
+
+/* Copy button — top-right, visible on hover */
+.dark-theme .codeblock__copy {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  padding: 2px 8px !important;
+  font-size: 0.6875rem !important;    /* 11px */
+  font-weight: 500 !important;
+  font-family: "sd sans", "Noto Sans", Helvetica, Arial, sans-serif !important;
+  color: var(--midnight-text-muted) !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  opacity: 0 !important;
+  transition: opacity 0.15s ease !important;
+  z-index: 1 !important;
+  line-height: 1.2 !important;
+}
+.dark-theme pre.codeblock:hover .codeblock__copy {
+  opacity: 1 !important;
+}
+.dark-theme .codeblock__copy:hover {
+  background: rgba(0, 0, 0, 0.85) !important;
+  color: var(--midnight-text-normal) !important;
+}
+.dark-theme .codeblock__copy--copied {
+  color: #57ab5a !important;
+  opacity: 1 !important;
+}
+
+/* Language label at top of code block */
+.dark-theme .codeblock__lang {
+  font-size: 0.6875rem !important;    /* 11px */
+  font-weight: 600 !important;
+  color: var(--midnight-text-muted) !important;
+  text-transform: lowercase !important;
+  margin-bottom: 4px !important;
+  padding-bottom: 4px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  font-family: "sd sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+.dark-theme pre.codeblock code {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+  white-space: pre !important;
+}
+
+/* Scrollbar for code blocks */
+.dark-theme pre.codeblock::-webkit-scrollbar {
+  height: 6px !important;
+}
+.dark-theme pre.codeblock::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.dark-theme pre.codeblock::-webkit-scrollbar-thumb {
+  background-color: var(--midnight-scrollbar-thumb) !important;
+  border-radius: 3px !important;
+}
+
+/* highlight.js token colors — Midnight Midnight (GitHub Dark Dimmed palette) */
+.dark-theme pre.codeblock .hljs-keyword,
+.dark-theme pre.codeblock .hljs-selector-tag { color: #f47067; }
+.dark-theme pre.codeblock .hljs-string,
+.dark-theme pre.codeblock .hljs-regexp { color: #96d0ff; }
+.dark-theme pre.codeblock .hljs-comment,
+.dark-theme pre.codeblock .hljs-doctag { color: #768390; font-style: italic; }
+.dark-theme pre.codeblock .hljs-function,
+.dark-theme pre.codeblock .hljs-title { color: #dcbdfb; }
+.dark-theme pre.codeblock .hljs-number { color: #6cb6ff; }
+.dark-theme pre.codeblock .hljs-built_in { color: #f69d50; }
+.dark-theme pre.codeblock .hljs-type,
+.dark-theme pre.codeblock .hljs-title.class_ { color: #6cb6ff; }
+.dark-theme pre.codeblock .hljs-params { color: #adbac7; }
+.dark-theme pre.codeblock .hljs-literal { color: #6cb6ff; }
+.dark-theme pre.codeblock .hljs-attr,
+.dark-theme pre.codeblock .hljs-attribute { color: #6cb6ff; }
+.dark-theme pre.codeblock .hljs-variable,
+.dark-theme pre.codeblock .hljs-template-variable { color: #f69d50; }
+.dark-theme pre.codeblock .hljs-symbol { color: #6cb6ff; }
+.dark-theme pre.codeblock .hljs-meta { color: #768390; }
+.dark-theme pre.codeblock .hljs-selector-class,
+.dark-theme pre.codeblock .hljs-selector-id { color: #6cb6ff; }
+.dark-theme pre.codeblock .hljs-addition { color: #57ab5a; background-color: rgba(70, 149, 74, 0.15); }
+.dark-theme pre.codeblock .hljs-deletion { color: #e5534b; background-color: rgba(229, 83, 75, 0.15); }
+.dark-theme pre.codeblock .hljs-name { color: #8ddb8c; }
+.dark-theme pre.codeblock .hljs-tag { color: #8ddb8c; }
+.dark-theme pre.codeblock .hljs-section { color: #dcbdfb; font-weight: 600; }
+.dark-theme pre.codeblock .hljs-emphasis { font-style: italic; }
+.dark-theme pre.codeblock .hljs-strong { font-weight: 700; }
+.dark-theme pre.codeblock .hljs-link { color: #96d0ff; text-decoration: underline; }
+.dark-theme pre.codeblock .hljs-operator { color: #f47067; }
+.dark-theme pre.codeblock .hljs-property { color: #6cb6ff; }
+.dark-theme pre.codeblock .hljs-punctuation { color: #adbac7; }
+.dark-theme pre.codeblock .hljs-subst { color: #adbac7; }
+
+/* Inline monospace: Midnight style — no column limit, natural width */
+.dark-theme .MessageTextRenderer__formatting--monospace {
+  background-color: #2b2d31 !important;
+  padding: 0.2em 0.4em !important;
+  border-radius: 3px !important;
+  font-size: 85% !important;
+  font-family: "Consolas", "Andale Mono", "Courier New", monospace !important;
+  color: var(--midnight-text-normal) !important;
+}
+
+/* ==========================================================================
+   NavTabs Restructure — Midnight-style left sidebar
+   - Chats tab at the very top
+   - Hide Tabs / Show Tabs button removed entirely
+   - Settings tab hidden (profile icon opens settings)
+   - Profile avatar pinned to very bottom
+   ========================================================================== */
+
+/* Hide the NavTabsToggle (Hide Tabs / Show Tabs) — not needed */
+.dark-theme .NavTabs > .NavTabs__Item.NavTabs__Toggle {
+  display: none !important;
+}
+
+/* Hide the Settings tab — profile avatar already opens settings */
+.dark-theme .NavTabs__Item--Settings {
+  display: none !important;
+}
+
+/* Remove the 1fr spacer from the grid — tabs stack at top,
+   flex on the TabList container pushes Misc to the bottom. */
+.dark-theme .NavTabs__TabList {
+  grid-template-rows:
+    [Chats] auto
+    [Calls] auto
+    [Stories] auto !important;
+  flex: 0 0 auto !important;
+}
+
+/* NavTabs is already a flex column — ensure Misc is pushed to very bottom */
+.dark-theme .NavTabs {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Spacer between tabs and profile — pushes profile to bottom */
+.dark-theme .NavTabs__TabList {
+  margin-bottom: auto !important;
+}
+
+/* Profile/Misc: always visible, pinned to very bottom */
+.dark-theme .NavTabs__Misc {
+  display: flex !important;
+  margin-top: auto !important;
+}
+
+/* ==========================================================================
+   Kill title-bar drag area padding/height — flush UI to the top edge
+   Exception: NavTabs keeps its padding (not overridden here).
+   ========================================================================== */
+
+/* NavSidebar: flush to top */
+.dark-theme .NavSidebar {
+  padding-top: 0 !important;
+}
+
+/* Conversation header: flush to top, fixed height */
+.dark-theme .module-ConversationHeader {
+  padding-top: 0 !important;
+  height: 48px !important;
+}
+
+/* Top-level drag area spacer */
+.dark-theme .module-title-bar-drag-area {
+  height: 0 !important;
+}
+
+/* 24px breathing room after the last message in the timeline */
+.dark-theme .module-timeline__messages {
+  padding-bottom: 24px !important;
+}
+
+/* ==========================================================================
+   Midnight-style Drag & Drop Upload Overlay
+   Shows a dark overlay with "Upload to @username" when dragging files
+   over the conversation, matching Midnight's uploadDropModal design.
+   ========================================================================== */
+
+/* Full-screen overlay backdrop */
+.dark-theme .ConversationView__drop-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  pointer-events: none !important;
+}
+
+/* Central modal card */
+.dark-theme .ConversationView__drop-overlay__modal {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 40px 60px !important;
+  border-radius: 8px !important;
+  border: 2px dashed var(--midnight-brand-500, #5865f2) !important;
+  background-color: var(--midnight-bg-primary, #111214) !important;
+  text-align: center !important;
+  max-width: 480px !important;
+  pointer-events: none !important;
+}
+
+/* File type icons row */
+.dark-theme .ConversationView__drop-overlay__icons {
+  display: flex !important;
+  gap: 16px !important;
+  margin-bottom: 24px !important;
+}
+
+/* Individual file type icon */
+.dark-theme .ConversationView__drop-overlay__icon {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  background-color: var(--midnight-brand-500, #5865f2) !important;
+  position: relative !important;
+}
+
+/* Image icon: mountain/sun landscape pictogram */
+.dark-theme .ConversationView__drop-overlay__icon--image::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='currentColor' d='M21 3H3a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1ZM4 5h16v9.59l-3.29-3.3a1 1 0 0 0-1.42 0L11 15.59l-2.29-2.3a1 1 0 0 0-1.42 0L4 16.59V5Zm0 14v-1.59l3.71-3.7 2.29 2.29a1 1 0 0 0 1.42 0l4.29-4.3L20 16.41V19H4ZM8 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z'/%3E%3C/svg%3E") !important;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='currentColor' d='M21 3H3a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1ZM4 5h16v9.59l-3.29-3.3a1 1 0 0 0-1.42 0L11 15.59l-2.29-2.3a1 1 0 0 0-1.42 0L4 16.59V5Zm0 14v-1.59l3.71-3.7 2.29 2.29a1 1 0 0 0 1.42 0l4.29-4.3L20 16.41V19H4ZM8 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z'/%3E%3C/svg%3E") !important;
+  -webkit-mask-size: 24px 24px !important;
+  mask-size: 24px 24px !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  background-color: #fff !important;
+}
+
+/* Document icon: file pictogram */
+.dark-theme .ConversationView__drop-overlay__icon--document::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='currentColor' d='M4 3a1 1 0 0 1 1-1h9.59a1 1 0 0 1 .7.29l4.42 4.42a1 1 0 0 1 .29.7V21a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3Zm2 1v16h12V9h-4a1 1 0 0 1-1-1V4H6Zm9 .41V7h2.59L15 4.41ZM8 13a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H9a1 1 0 0 1-1-1Zm1 3a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H9Z'/%3E%3C/svg%3E") !important;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='currentColor' d='M4 3a1 1 0 0 1 1-1h9.59a1 1 0 0 1 .7.29l4.42 4.42a1 1 0 0 1 .29.7V21a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3Zm2 1v16h12V9h-4a1 1 0 0 1-1-1V4H6Zm9 .41V7h2.59L15 4.41ZM8 13a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H9a1 1 0 0 1-1-1Zm1 3a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H9Z'/%3E%3C/svg%3E") !important;
+  -webkit-mask-size: 24px 24px !important;
+  mask-size: 24px 24px !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  background-color: #fff !important;
+}
+
+/* Title: "Upload to @username" */
+.dark-theme .ConversationView__drop-overlay__title {
+  font-size: 24px !important;
+  line-height: 32px !important;
+  font-weight: 600 !important;
+  color: var(--midnight-text-normal, #dbdee1) !important;
+  margin-bottom: 8px !important;
+  font-family: "sd sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+.dark-theme .ConversationView__drop-overlay__title strong {
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+
+/* Instructions text */
+.dark-theme .ConversationView__drop-overlay__instructions {
+  font-size: 14px !important;
+  line-height: 20px !important;
+  color: var(--midnight-text-muted, #949ba4) !important;
+  font-family: "sd sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  white-space: pre-line !important;
+}
+
+/* ==========================================================================
+   Preferences — Midnight Midnight overrides
+   ========================================================================== */
+.dark-theme .Preferences__page-selector {
+  background: transparent !important;
+}
+
+.dark-theme .Preferences__profile-chip--selected {
+  background-color: #1b1b1b !important;
+}
+
+/* "Read more" button — subtle, Midnight-style */
+.dark-theme .MessageBody__read-more {
+  font-size: 0.75rem !important;        /* 12px — smaller than message text */
+  font-weight: 400 !important;
+  font-style: italic !important;
+  color: var(--midnight-text-muted) !important;  /* #888991 */
+  opacity: 0.8 !important;
+  transition: opacity 0.15s ease !important;
+}
+.dark-theme .MessageBody__read-more:hover {
+  opacity: 1 !important;
+  color: var(--midnight-text-subtle) !important; /* #9d9ea5 */
+}
+
+.dark-theme .module-sticker-manager__text.module-sticker-manager__text--heading {
+  padding-top: 12px !important;
+  padding-bottom: 24px !important;
+}
+
+/* ==========================================================================
+   Fun Picker (emoji/sticker/GIF panels) — darker to match Midnight
+   ========================================================================== */
+.dark-theme .FunPopover__Dialog {
+  background: #1a1b1e !important;
+}
+.dark-theme .FunTabs__TabPanelInner {
+  background: #1a1b1e !important;
+}
+.dark-theme .FunSearch__Input {
+  background: #111214 !important;
+}
+/* Scroller fade masks — match darkened picker background */
+.dark-theme .FunSubNav__ScrollerMask--Left,
+.dark-theme .FunSubNav__Scroller::before {
+  background: linear-gradient(to right, #1a1b1e 20%, transparent) !important;
+}
+.dark-theme .FunSubNav__ScrollerMask--Right,
+.dark-theme .FunSubNav__Scroller::after {
+  background: linear-gradient(to left, #1a1b1e 20%, transparent) !important;
+}
+.dark-theme .FunSubNav__Button:hover,
+.dark-theme .FunSubNav__ListBoxItemButton:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.dark-theme .FunSubNav__ListBoxItem__ButtonIndicator {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+.dark-theme .FunTabs__TabIndicator {
+  background: var(--midnight-text-normal) !important;
+}
+
+/* Fun picker items — remove borders around individual emoji/sticker cells */
+.dark-theme .FunItem__Button {
+  border: none !important;
+}
+
+/* NavTabs profile avatar — 32px instead of 28px */
+.dark-theme .NavTabs__ItemContent .module-Avatar,
+.dark-theme .NavTabs__ItemContent .module-Avatar__contents {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+}

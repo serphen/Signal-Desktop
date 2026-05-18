@@ -479,6 +479,7 @@ export const DataReader: ServerReadableInterface = {
   getConversationRangeCenteredOnMessage,
   getConversationMessageStats,
   getLastConversationMessage,
+  getLastIncomingActivityTimestamp,
   getAllCallHistory,
   getCallHistoryUnreadCount,
   getCallHistoryMessageByCallId,
@@ -4414,6 +4415,52 @@ function getLastConversationMessage(
 
     return hydrateMessage(db, row);
   })();
+}
+
+// Midnight: get the timestamp of the other person's last activity
+// MAX of: last incoming message they sent, or last read receipt on our messages
+function getLastIncomingActivityTimestamp(
+  db: ReadableDB,
+  {
+    conversationId,
+    ourConversationId,
+  }: {
+    conversationId: string;
+    ourConversationId: string;
+  }
+): number | null {
+  const row = db
+    .prepare(
+      `
+      SELECT MAX(ts) AS ts FROM (
+        SELECT * FROM (
+          SELECT sent_at AS ts FROM messages
+          WHERE conversationId = $conversationId
+            AND type = 'incoming'
+          ORDER BY sent_at DESC
+          LIMIT 1
+        )
+
+        UNION ALL
+
+        SELECT * FROM (
+          SELECT CAST(json_extract(je.value, '$.updatedAt') AS INTEGER) AS ts
+          FROM (
+            SELECT json FROM messages
+            WHERE conversationId = $conversationId
+              AND type = 'outgoing'
+            ORDER BY sent_at DESC
+            LIMIT 50
+          ) m, json_each(json_extract(m.json, '$.sendStateByConversationId')) je
+          WHERE CAST(json_extract(je.value, '$.status') AS INTEGER) >= 4
+            AND je.key != $ourConversationId
+        )
+      )
+      `
+    )
+    .get<{ ts: number | null }>({ conversationId, ourConversationId });
+
+  return row?.ts ?? null;
 }
 
 function getOldestUnseenMessageForConversation(

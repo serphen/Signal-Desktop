@@ -67,32 +67,6 @@ export function MessageContextMenu({
           }
         }}
       >
-        {shouldShowAdditional && (
-          <>
-            {onDownload && (
-              <AxoMenuBuilder.Item symbol="download" onSelect={onDownload}>
-                {i18n('icu:MessageContextMenu__download')}
-              </AxoMenuBuilder.Item>
-            )}
-            {onReplyToMessage && (
-              <AxoMenuBuilder.Item
-                symbol="reply"
-                onSelect={() => {
-                  // onReplyToMessage will focus the quill input
-                  shouldReturnFocusToTrigger.current = false;
-                  onReplyToMessage();
-                }}
-              >
-                {i18n('icu:MessageContextMenu__reply')}
-              </AxoMenuBuilder.Item>
-            )}
-            {onReact && (
-              <AxoMenuBuilder.Item symbol="heart-plus" onSelect={onReact}>
-                {i18n('icu:MessageContextMenu__react')}
-              </AxoMenuBuilder.Item>
-            )}
-          </>
-        )}
         {onEndPoll && (
           <AxoMenuBuilder.Item symbol="stop-circle" onSelect={onEndPoll}>
             {i18n('icu:Poll__end-poll')}
@@ -148,9 +122,11 @@ export function MessageContextMenu({
           </AxoMenuBuilder.Item>
         )}
         {onDeleteMessage && (
-          <AxoMenuBuilder.Item symbol="trash" onSelect={onDeleteMessage}>
-            {i18n('icu:MessageContextMenu__deleteMessage')}
-          </AxoMenuBuilder.Item>
+          <span className="MessageContextMenu__delete" style={{ display: 'contents' }}>
+            <AxoMenuBuilder.Item symbol="trash" onSelect={onDeleteMessage}>
+              {i18n('icu:MessageContextMenu__deleteMessage')}
+            </AxoMenuBuilder.Item>
+          </span>
         )}
         {onRetryMessageSend && (
           <AxoMenuBuilder.Item symbol="send" onSelect={onRetryMessageSend}>
@@ -158,12 +134,14 @@ export function MessageContextMenu({
           </AxoMenuBuilder.Item>
         )}
         {onRetryDeleteForEveryone && (
-          <AxoMenuBuilder.Item
-            symbol="trash"
-            onSelect={onRetryDeleteForEveryone}
-          >
-            {i18n('icu:retryDeleteForEveryone')}
-          </AxoMenuBuilder.Item>
+          <span className="MessageContextMenu__delete" style={{ display: 'contents' }}>
+            <AxoMenuBuilder.Item
+              symbol="trash"
+              onSelect={onRetryDeleteForEveryone}
+            >
+              {i18n('icu:retryDeleteForEveryone')}
+            </AxoMenuBuilder.Item>
+          </span>
         )}
         {isInternalFeaturesEnabled() && onDebugMessage && (
           <>

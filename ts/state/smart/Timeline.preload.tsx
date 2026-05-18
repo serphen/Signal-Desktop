@@ -95,6 +95,7 @@ export const SmartTimeline = memo(function SmartTimeline({
     loadNewestMessages,
     loadOlderMessages,
     markMessageRead,
+    clearUnreadMetrics,
     scrollToOldestUnreadMention,
     setCenterMessage,
     setIsNearBottom,
@@ -196,6 +197,7 @@ export const SmartTimeline = memo(function SmartTimeline({
         clearInvitedServiceIdsForNewlyCreatedGroup
       }
       clearTargetedMessage={clearTargetedMessage}
+      clearUnreadMetrics={clearUnreadMetrics}
       closeContactSpoofingReview={closeContactSpoofingReview}
       conversationType={conversationType}
       discardMessages={discardMessages}

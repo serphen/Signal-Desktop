@@ -142,6 +142,13 @@ function closeLightbox(): ThunkAction<
     dispatch({
       type: CLOSE_LIGHTBOX,
     });
+
+    // Focus the composer after closing the lightbox
+    const { conversations } = getState();
+    const { selectedConversationId } = conversations;
+    if (selectedConversationId) {
+      window.reduxActions.composer.setComposerFocus(selectedConversationId);
+    }
   };
 }
 
