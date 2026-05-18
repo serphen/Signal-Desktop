@@ -25,6 +25,8 @@ tsconfig.tsbuildinfo
 libtextsecure/components.js
 stylesheets/*.css
 !stylesheets/tailwind-config.css
+!stylesheets/_fonts.css
+!stylesheets/midnight-override.css
 /storybook-static/
 preload.bundle.*
 preload.wrapper.js
@@ -48,3 +50,6 @@ ts/protobuf/*.d.ts
 /.zed
 *.sublime*
 *.map
+
+# Claude Code
+.claude

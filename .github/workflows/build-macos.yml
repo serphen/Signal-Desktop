@@ -1,0 +1,88 @@
+# Copyright 2025 Signal Messenger, LLC
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Build macOS arm64
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+    - run: uname -a
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+    - name: Setup pnpm
+      uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+    - name: Setup node.js
+      uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
+      with:
+        node-version-file: '.nvmrc'
+        cache: 'pnpm'
+        cache-dependency-path: 'pnpm-lock.yaml'
+    - name: Cache .electron-gyp
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ~/.electron-gyp
+        key: electron-gyp-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+    - name: Build macOS arm64
+      run: scripts/build.sh mac arm64
+
+    - name: Package Signal.app
+      run: tar -czf Signal.tar.gz -C dist/mac-arm64 Signal.app
+
+    - name: Update latest release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        SHA=$(git rev-parse --short HEAD)
+        DATE=$(date -u +%Y-%m-%d)
+        CHECKSUM=$(sha256sum Signal.tar.gz | cut -d' ' -f1)
+        JOB_URL=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs --jq '.jobs[0].html_url')
+
+        # Changelog: commits since last release
+        PREV_SHA=$(gh release view latest --json tagName --jq '.tagName' 2>/dev/null && git rev-list -n1 latest 2>/dev/null || echo "")
+        if [ -n "$PREV_SHA" ]; then
+          CHANGELOG=$(git log --oneline "${PREV_SHA}..HEAD" 2>/dev/null || echo "First release")
+        else
+          CHANGELOG="First release"
+        fi
+
+        gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+        gh release create latest Signal.tar.gz \
+          --title "Signal Desktop — macOS arm64" \
+          --notes "$(cat <<EOF
+        Built from [\`${SHA}\`](${JOB_URL}) on ${DATE}.
+
+        **[Build logs](${JOB_URL})**
+
+        ## Install
+        \`\`\`bash
+        curl -fSL \\
+          ${{ github.server_url }}/${{ github.repository }}/releases/latest/download/Signal.tar.gz \\
+          | tar xz -C /Applications/ Signal.app
+        \`\`\`
+
+        If macOS says the app is "damaged" or "can't be opened", run:
+        \`\`\`bash
+        xattr -cr /Applications/Signal.app
+        \`\`\`
+
+        ## Changelog
+        \`\`\`
+        ${CHANGELOG}
+        \`\`\`
+
+        **SHA-256:** \`${CHECKSUM}\`
+
+        > This is a rolling release — each push to \`main\` replaces the previous build. The checksum above matches the file currently available for download.
+        EOF
+        )" \
+          --latest

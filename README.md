@@ -3,42 +3,81 @@
 
 # Signal Desktop
 
-Signal Desktop links with Signal on [Android](https://github.com/signalapp/Signal-Android) or [iOS](https://github.com/signalapp/Signal-iOS) and lets you message from your Windows, macOS, and Linux computers.
+[![Build](https://github.com/serphen/Signal/actions/workflows/build-macos.yml/badge.svg)](https://github.com/serphen/Signal/actions/workflows/build-macos.yml) [![Release date](https://img.shields.io/github/release-date/serphen/Signal)](https://github.com/serphen/Signal/releases/latest)
 
-[Install the production version](https://signal.org/download/) or help us out by [installing the beta version](https://support.signal.org/hc/articles/360007318471-Signal-Beta).
+## Install (macOS Apple Silicon)
 
-## Got a question?
+```bash
+curl -fSL \
+  https://github.com/serphen/Signal/releases/latest/download/Signal.tar.gz \
+  | tar xz -C /Applications/ Signal.app
+```
 
-You can find answers to a number of frequently asked questions on our [support site](https://support.signal.org/).
-The [community forum](https://community.signalusers.org/) is another good place for questions.
+If macOS says the app is "damaged" or "can't be opened", run:
+```bash
+xattr -cr /Applications/Signal.app
+```
 
-## Found a Bug?
+---
 
-Please search for any [existing issues](https://github.com/signalapp/Signal-Desktop/issues) that describe your bug in order to avoid duplicate submissions.
+## Build
 
-## Have a feature request, question, comment?
+The easiest way to build is with the devcontainer. Everything is pre-installed and isolated — just clone, open, and build. A native build option (without Docker) is available at the bottom.
 
-Please use our community forum: https://community.signalusers.org/
+## Quick start (recommended)
 
-## Contributing to the project
+1. Install [OrbStack](https://orbstack.dev/) and [VS Code](https://code.visualstudio.com/) with the **Dev Containers** extension
+2. Clone the repo
+```bash
+git clone https://github.com/serphen/Signal.git
+```
+3. Open the `Signal` folder in VS Code, then `Cmd+Shift+P` > **Dev Containers: Reopen in Container**
+4. Build:
+```bash
+./scripts/build.sh
+```
 
-Please see [CONTRIBUTING.md](https://github.com/signalapp/Signal-Desktop/blob/main/CONTRIBUTING.md). There are lots of ways to contribute - many that don't involve code!
+That's it. The macOS `.app` (Apple Silicon) lands in `dist/mac-arm64/Signal.app`.
 
-## Donate to Signal
+Other platforms:
+```bash
+./scripts/build.sh mac x64      # macOS Intel
+./scripts/build.sh linux        # Linux
+./scripts/build.sh windows      # Windows (x86_64 host only, needs Wine)
+```
 
-You can donate to Signal from inside Signal apps (Desktop, Android, or iOS), or via the web here: [Signal Technology Foundation](https://signal.org/donate). Signal is an independent 501c3 nonprofit.
+You can also use it for dev — just rebuild and relaunch the app after each change.
 
-## Cryptography Notice
+## Tips
 
-This distribution includes cryptographic software. The country in which you currently reside may have restrictions on the import, possession, use, and/or re-export to another country, of encryption software.
-BEFORE using any encryption software, please check your country's laws, regulations and policies concerning the import, possession, or use, and re-export of encryption software, to see if this is permitted.
-See <http://www.wassenaar.org/> for more information.
+- **DevTools (Inspect Element):** `Cmd+Option+I`
 
-The U.S. Government Department of Commerce, Bureau of Industry and Security (BIS), has classified this software as Export Commodity Control Number (ECCN) 5D002.C.1, which includes information security software using or performing cryptographic functions with asymmetric algorithms.
-The form and manner of this distribution makes it eligible for export under the License Exception ENC Technology Software Unrestricted (TSU) exception (see the BIS Export Administration Regulations, Section 740.13) for both object code and source code.
+---
 
-## License
+<details>
+<summary>Alternative: native build (no Docker)</summary>
 
-Copyright 2013-2024 Signal Messenger, LLC
+Build directly on the host. Useful if you want hot reload via `pnpm start` for faster iteration.
 
-Licensed under the GNU AGPLv3: https://www.gnu.org/licenses/agpl-3.0.html
+```bash
+git clone https://github.com/serphen/Signal.git
+cd Signal
+nvm install && nvm use
+npm install -g pnpm
+pnpm install && pnpm rebuild
+```
+
+Dev mode (live reload):
+```bash
+pnpm run generate
+pnpm start
+```
+
+Build standalone `.app`:
+```bash
+./scripts/build.sh
+```
+
+Output is in `dist/mac-arm64/` or `dist/mac/`.
+
+</details>

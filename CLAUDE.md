@@ -1,0 +1,1 @@
+- **Git Identity**: All commits MUST use `dev <dev@localhost>` as author. Run `git config user.name "dev" && git config user.email "dev@localhost"` if not already set.

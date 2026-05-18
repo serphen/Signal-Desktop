@@ -1,0 +1,87 @@
+{
+  "name": "Signal Desktop",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "eamodio.gitlens",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          },
+          "zsh": {
+            "path": "zsh"
+          }
+        }
+      },
+      "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+          {
+            "label": "Dev: Run",
+            "type": "shell",
+            "command": "./scripts/run_dev.sh",
+            "group": "build",
+            "problemMatcher": []
+          },
+          {
+            "label": "Build: macOS .app",
+            "type": "shell",
+            "command": "./scripts/build.sh mac",
+            "group": "build",
+            "problemMatcher": []
+          },
+          {
+            "label": "Build: macOS .app (arm64)",
+            "type": "shell",
+            "command": "./scripts/build.sh mac arm64",
+            "group": "build",
+            "problemMatcher": []
+          },
+          {
+            "label": "Build: macOS .app (x64)",
+            "type": "shell",
+            "command": "./scripts/build.sh mac x64",
+            "group": "build",
+            "problemMatcher": []
+          },
+          {
+            "label": "Build: Linux",
+            "type": "shell",
+            "command": "./scripts/build.sh linux",
+            "group": "build",
+            "problemMatcher": []
+          }
+        ]
+      }
+    }
+  },
+
+  "remoteUser": "node",
+
+  "mounts": [
+    "source=signal-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=signal-claude-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  ],
+
+  "remoteEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
+  }
+}
