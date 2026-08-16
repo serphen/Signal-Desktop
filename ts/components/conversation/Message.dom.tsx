@@ -138,12 +138,6 @@ const STICKER_SIZE = 200;
 const GIF_SIZE = 300;
 // Note: this needs to match the animation time
 const TARGETED_TIMEOUT = 1200;
-const SENT_STATUSES = new Set<MessageStatusType>([
-  'delivered',
-  'read',
-  'sent',
-  'viewed',
-]);
 const GIFT_BADGE_UPDATE_INTERVAL = 30 * SECOND;
 
 enum MetadataPlacement {
@@ -806,17 +800,12 @@ export class Message extends PureComponent<Props, State> {
       attachments,
       deletedForEveryone,
       direction,
-      expirationLength,
-      expirationTimestamp,
       giftBadge,
       i18n,
-      isPinned,
       isTapToView,
       isTapToViewError,
       isTapToViewExpired,
       readStatus,
-      shouldHideMetadata,
-      status,
       text,
     }: Readonly<Props> = this.props
   ): MetadataPlacement {
@@ -974,13 +963,9 @@ export class Message extends PureComponent<Props, State> {
   }
 
   #shouldRenderAuthor(): boolean {
-    const { author, shouldCollapseAbove } =
-      this.props;
+    const { author, shouldCollapseAbove } = this.props;
     // Midnight-style: always show author name for group-start messages
-    return Boolean(
-      author.title &&
-      !shouldCollapseAbove
-    );
+    return Boolean(author.title && !shouldCollapseAbove);
   }
 
   #cachedEmojifyData: EmojifyData | null = null;
@@ -1120,7 +1105,6 @@ export class Message extends PureComponent<Props, State> {
       author,
       contactLabel,
       contactNameColor,
-      i18n,
       isSticker,
       quote,
       timestamp,

@@ -14,6 +14,7 @@ curl -fSL \
 ```
 
 If macOS says the app is "damaged" or "can't be opened", run:
+
 ```bash
 xattr -cr /Applications/Signal.app
 ```
@@ -28,11 +29,14 @@ The easiest way to build is with the devcontainer. Everything is pre-installed a
 
 1. Install [OrbStack](https://orbstack.dev/) and [VS Code](https://code.visualstudio.com/) with the **Dev Containers** extension
 2. Clone the repo
+
 ```bash
 git clone https://github.com/serphen/Signal.git
 ```
+
 3. Open the `Signal` folder in VS Code, then `Cmd+Shift+P` > **Dev Containers: Reopen in Container**
 4. Build:
+
 ```bash
 ./scripts/build.sh
 ```
@@ -40,6 +44,7 @@ git clone https://github.com/serphen/Signal.git
 That's it. The macOS `.app` (Apple Silicon) lands in `dist/mac-arm64/Signal.app`.
 
 Other platforms:
+
 ```bash
 ./scripts/build.sh mac x64      # macOS Intel
 ./scripts/build.sh linux        # Linux
@@ -68,12 +73,14 @@ pnpm install && pnpm rebuild
 ```
 
 Dev mode (live reload):
+
 ```bash
 pnpm run generate
 pnpm start
 ```
 
 Build standalone `.app`:
+
 ```bash
 ./scripts/build.sh
 ```

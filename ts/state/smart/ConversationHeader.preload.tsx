@@ -304,11 +304,12 @@ export const SmartConversationHeader = memo(function SmartConversationHeader({
     if (!ourConversationId) {
       return;
     }
+    const currentOurConversationId = ourConversationId;
     let cancelled = false;
     async function poll() {
       const ts = await DataReader.getLastIncomingActivityTimestamp({
         conversationId: conversation.id,
-        ourConversationId: ourConversationId!,
+        ourConversationId: currentOurConversationId,
       });
       if (!cancelled) {
         setLastIncomingActivityAt(ts);

@@ -531,15 +531,17 @@ async function getInstalledBrowsers(): Promise<
     return installedBrowsers;
   }
 
-  const results: Array<{ name: string; app: string }> = [];
-  for (const browser of KNOWN_BROWSERS) {
-    try {
-      await fsExtra.access(`/Applications/${browser.app}.app`);
-      results.push(browser);
-    } catch {
-      // not installed
-    }
-  }
+  const browserResults = await Promise.all(
+    KNOWN_BROWSERS.map(async browser => {
+      try {
+        await fsExtra.access(`/Applications/${browser.app}.app`);
+        return browser;
+      } catch {
+        return undefined;
+      }
+    })
+  );
+  const results = browserResults.filter(browser => browser != null);
 
   installedBrowsers = results;
   return results;
@@ -590,9 +592,10 @@ async function handleUrl(rawTarget: string) {
         const options = {
           type: 'question' as const,
           title: 'Open link in...',
-          message: rawTarget.length > 80
-            ? `${rawTarget.substring(0, 80)}...`
-            : rawTarget,
+          message:
+            rawTarget.length > 80
+              ? `${rawTarget.substring(0, 80)}...`
+              : rawTarget,
           buttons: [...browsers.map(b => b.name), 'Cancel'],
           defaultId: 0,
           cancelId: browsers.length,
@@ -601,8 +604,9 @@ async function handleUrl(rawTarget: string) {
           ? await dialog.showMessageBox(focusedWindow, options)
           : await dialog.showMessageBox(options);
 
-        if (response < browsers.length) {
-          await openUrlInBrowser(rawTarget, browsers[response].app);
+        const browser = browsers[response];
+        if (browser) {
+          await openUrlInBrowser(rawTarget, browser.app);
         }
       } else {
         await shell.openExternal(rawTarget);

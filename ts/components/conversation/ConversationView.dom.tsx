@@ -83,17 +83,14 @@ export function ConversationView({
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounterRef = useRef(0);
 
-  const onDragEnter = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (event.dataTransfer?.types?.includes('Files')) {
-        dragCounterRef.current += 1;
-        setIsDragOver(true);
-      }
-    },
-    []
-  );
+  const onDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer?.types?.includes('Files')) {
+      dragCounterRef.current += 1;
+      setIsDragOver(true);
+    }
+  }, []);
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();

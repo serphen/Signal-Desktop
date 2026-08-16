@@ -67,6 +67,7 @@ const createProps = (overrideProps: Partial<Props> = {}): Props => ({
   closeStickerPackPreview: action('closeStickerPackPreview'),
   downloadStickerPack: action('downloadStickerPack'),
   i18n,
+  installRisibankPack: async () => undefined,
   installStickerPack: action('installStickerPack'),
   installedPacks: overrideProps.installedPacks || [],
   knownPacks: overrideProps.knownPacks || [],

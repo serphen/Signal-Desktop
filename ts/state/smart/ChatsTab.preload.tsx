@@ -143,8 +143,7 @@ export const SmartChatsTab = memo(function SmartChatsTab() {
       return;
     }
     const first =
-      leftPaneLists.pinnedConversations[0] ??
-      leftPaneLists.conversations[0];
+      leftPaneLists.pinnedConversations[0] ?? leftPaneLists.conversations[0];
     if (first) {
       hasAutoSelected.current = true;
       showConversation({ conversationId: first.id });

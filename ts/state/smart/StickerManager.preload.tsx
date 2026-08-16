@@ -15,6 +15,16 @@ import {
 import { useStickersActions } from '../ducks/stickers.preload.ts';
 import { useGlobalModalActions } from '../ducks/globalModals.preload.ts';
 import { useToastActions } from '../ducks/toast.preload.ts';
+import { putStickers } from '../../textsecure/WebAPI.preload.ts';
+
+async function installRisibankPack(
+  encryptedManifest: Uint8Array<ArrayBuffer>,
+  encryptedStickers: ReadonlyArray<Uint8Array<ArrayBuffer>>,
+  packKey: string
+): Promise<void> {
+  const packId = await putStickers(encryptedManifest, encryptedStickers);
+  await window.Events.installStickerPack(packId, packKey);
+}
 
 export const SmartStickerManager = memo(function SmartStickerManager() {
   const i18n = useSelector(getIntl);
@@ -40,6 +50,7 @@ export const SmartStickerManager = memo(function SmartStickerManager() {
       closeStickerPackPreview={closeStickerPackPreview}
       downloadStickerPack={downloadStickerPack}
       i18n={i18n}
+      installRisibankPack={installRisibankPack}
       installStickerPack={installStickerPack}
       installedPacks={installedPacks}
       knownPacks={knownPacks}

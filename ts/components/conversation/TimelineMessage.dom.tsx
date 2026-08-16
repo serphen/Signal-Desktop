@@ -286,7 +286,9 @@ export function TimelineMessage(props: Props): JSX.Element {
   );
 
   const shouldShowAdditional =
-    doesMessageBodyOverflow(text || '') || !isWindowWidthNotNarrow || isShiftHeld;
+    doesMessageBodyOverflow(text || '') ||
+    !isWindowWidthNotNarrow ||
+    isShiftHeld;
 
   const canSelect = interactivity === MessageInteractivity.Normal;
 
@@ -446,9 +448,7 @@ export function TimelineMessage(props: Props): JSX.Element {
               : null
           }
           onEdit={
-            canEditMessage
-              ? () => setMessageToEdit(conversationId, id)
-              : null
+            canEditMessage ? () => setMessageToEdit(conversationId, id) : null
           }
           onCopy={canCopy ? () => copyMessageText(id) : null}
           onDelete={() => {

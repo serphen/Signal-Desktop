@@ -87,7 +87,7 @@ import { FunPickerButton } from './fun/FunButton.dom.tsx';
 import { AxoDropdownMenu } from '../axo/AxoDropdownMenu.dom.tsx';
 import { AxoIconButton } from '../axo/AxoIconButton.dom.tsx';
 import { tw } from '../axo/tw.dom.tsx';
-import { isPollSendEnabled, type PollCreateType } from '../types/Polls.dom.ts';
+import type { PollCreateType } from '../types/Polls.dom.ts';
 import { PollCreateModal } from './PollCreateModal.dom.tsx';
 import { useDocumentKeyDown } from '../hooks/useDocumentKeyDown.dom.ts';
 import { hasDraft } from '../util/hasDraft.std.ts';
@@ -688,7 +688,7 @@ export const CompositionArea = memo(function CompositionArea({
     (open: boolean) => {
       setFunPickerOpen(open);
       if (open) {
-        fun.onChangeTab(FunPickerTabKey.Emoji);
+        fun.onChangeTab(FunPickerTabKey.EmojisTab);
       } else {
         setComposerFocus(conversationId);
       }
@@ -789,12 +789,12 @@ export const CompositionArea = memo(function CompositionArea({
   );
 
   const handleOpenStickerPicker = useCallback(() => {
-    fun.onChangeTab(FunPickerTabKey.Stickers);
+    fun.onChangeTab(FunPickerTabKey.StickersTab);
     setFunPickerOpen(true);
   }, [fun]);
 
   const handleOpenGifPicker = useCallback(() => {
-    fun.onChangeTab(FunPickerTabKey.Gifs);
+    fun.onChangeTab(FunPickerTabKey.GifsTab);
     setFunPickerOpen(true);
   }, [fun]);
 
@@ -936,7 +936,10 @@ export const CompositionArea = memo(function CompositionArea({
                 {i18n('icu:CompositionArea__AttachMenu__Poll')}
               </AxoDropdownMenu.Item>
             )}
-            <AxoDropdownMenu.Item symbol="mic" onSelect={handleStartVoiceMessage}>
+            <AxoDropdownMenu.Item
+              symbol="mic"
+              onSelect={handleStartVoiceMessage}
+            >
               {i18n('icu:voiceRecording--start')}
             </AxoDropdownMenu.Item>
           </AxoDropdownMenu.Content>

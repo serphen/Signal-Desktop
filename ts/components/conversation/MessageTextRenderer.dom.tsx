@@ -51,6 +51,24 @@ import graphql from 'highlight.js/lib/languages/graphql';
 import protobuf from 'highlight.js/lib/languages/protobuf';
 import elixir from 'highlight.js/lib/languages/elixir';
 import erlang from 'highlight.js/lib/languages/erlang';
+import type {
+  BodyRangesForDisplayType,
+  DisplayBodyRangeType,
+  DisplayNode,
+  HydratedBodyRangeMention,
+} from '../../types/BodyRange.std.ts';
+import {
+  BodyRange,
+  collapseRangesToDisplayNodes,
+  groupContiguousSpoilers,
+} from '../../types/BodyRange.std.ts';
+import { AtMention } from './AtMention.dom.tsx';
+import { isLinkSneaky } from '../../types/LinkPreview.std.ts';
+import { Emojify } from './Emojify.dom.tsx';
+import { AddNewLines } from './AddNewLines.dom.tsx';
+import type { LocalizerType } from '../../types/Util.std.ts';
+import type { FunJumboEmojiSize } from '../fun/FunEmoji.dom.tsx';
+import { Emoji } from '../../axo/emoji.std.ts';
 
 hljs.registerLanguage('javascript', javascript);
 hljs.registerLanguage('js', javascript);
@@ -125,25 +143,6 @@ hljs.registerLanguage('elixir', elixir);
 hljs.registerLanguage('ex', elixir);
 hljs.registerLanguage('erlang', erlang);
 
-import type {
-  BodyRangesForDisplayType,
-  DisplayBodyRangeType,
-  DisplayNode,
-  HydratedBodyRangeMention,
-} from '../../types/BodyRange.std.ts';
-import {
-  BodyRange,
-  collapseRangesToDisplayNodes,
-  groupContiguousSpoilers,
-} from '../../types/BodyRange.std.ts';
-import { AtMention } from './AtMention.dom.tsx';
-import { isLinkSneaky } from '../../types/LinkPreview.std.ts';
-import { Emojify } from './Emojify.dom.tsx';
-import { AddNewLines } from './AddNewLines.dom.tsx';
-import type { LocalizerType } from '../../types/Util.std.ts';
-import type { FunJumboEmojiSize } from '../fun/FunEmoji.dom.tsx';
-import { Emoji } from '../../axo/emoji.std.ts';
-
 const { sortBy } = lodash;
 
 const CODE_BLOCK_REGEX = /```(\w*)\n([\s\S]*?)```/g;
@@ -170,11 +169,10 @@ function CodeBlock({
 }): ReactElement {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }, [code]);
 
   return (
@@ -188,8 +186,13 @@ function CodeBlock({
       {lang && <div className="codeblock__lang">{lang}</div>}
       <button
         type="button"
-        className={classNames('codeblock__copy', copied && 'codeblock__copy--copied')}
-        onClick={handleCopy}
+        className={classNames(
+          'codeblock__copy',
+          copied && 'codeblock__copy--copied'
+        )}
+        onClick={() => {
+          void handleCopy();
+        }}
         aria-label="Copy code"
       >
         {copied ? 'Copied!' : 'Copy'}
@@ -201,18 +204,103 @@ function CodeBlock({
 }
 
 const KNOWN_LANGUAGES = [
-  'javascript', 'js', 'typescript', 'ts', 'python', 'py', 'java', 'c',
-  'cpp', 'c++', 'csharp', 'c#', 'cs', 'go', 'rust', 'rs', 'ruby', 'rb',
-  'php', 'swift', 'kotlin', 'scala', 'html', 'css', 'scss', 'sass',
-  'less', 'json', 'xml', 'yaml', 'yml', 'toml', 'sql', 'bash', 'sh',
-  'shell', 'zsh', 'powershell', 'ps1', 'dockerfile', 'docker', 'makefile',
-  'lua', 'perl', 'r', 'matlab', 'julia', 'elixir', 'ex', 'erlang',
-  'haskell', 'hs', 'clojure', 'clj', 'lisp', 'scheme', 'ocaml', 'ml',
-  'fsharp', 'f#', 'dart', 'zig', 'nim', 'v', 'assembly', 'asm', 'nasm',
-  'wasm', 'graphql', 'gql', 'proto', 'protobuf', 'terraform', 'tf',
-  'diff', 'patch', 'ini', 'conf', 'nginx', 'apache', 'markdown', 'md',
-  'latex', 'tex', 'csv', 'tsv', 'plaintext', 'text', 'txt', 'log',
-  'jsx', 'tsx', 'vue', 'svelte', 'astro', 'objc', 'objective-c',
+  'javascript',
+  'js',
+  'typescript',
+  'ts',
+  'python',
+  'py',
+  'java',
+  'c',
+  'cpp',
+  'c++',
+  'csharp',
+  'c#',
+  'cs',
+  'go',
+  'rust',
+  'rs',
+  'ruby',
+  'rb',
+  'php',
+  'swift',
+  'kotlin',
+  'scala',
+  'html',
+  'css',
+  'scss',
+  'sass',
+  'less',
+  'json',
+  'xml',
+  'yaml',
+  'yml',
+  'toml',
+  'sql',
+  'bash',
+  'sh',
+  'shell',
+  'zsh',
+  'powershell',
+  'ps1',
+  'dockerfile',
+  'docker',
+  'makefile',
+  'lua',
+  'perl',
+  'r',
+  'matlab',
+  'julia',
+  'elixir',
+  'ex',
+  'erlang',
+  'haskell',
+  'hs',
+  'clojure',
+  'clj',
+  'lisp',
+  'scheme',
+  'ocaml',
+  'ml',
+  'fsharp',
+  'f#',
+  'dart',
+  'zig',
+  'nim',
+  'v',
+  'assembly',
+  'asm',
+  'nasm',
+  'wasm',
+  'graphql',
+  'gql',
+  'proto',
+  'protobuf',
+  'terraform',
+  'tf',
+  'diff',
+  'patch',
+  'ini',
+  'conf',
+  'nginx',
+  'apache',
+  'markdown',
+  'md',
+  'latex',
+  'tex',
+  'csv',
+  'tsv',
+  'plaintext',
+  'text',
+  'txt',
+  'log',
+  'jsx',
+  'tsx',
+  'vue',
+  'svelte',
+  'astro',
+  'objc',
+  'objective-c',
 ];
 export enum RenderLocation {
   ConversationList = 'ConversationList',
@@ -437,7 +525,11 @@ function renderNode({
   }
 
   // Code block detection: monospace body range with newlines → render as <pre><code>
-  if (node.isMonospace && node.text.includes('\n') && renderLocation === RenderLocation.Timeline) {
+  if (
+    node.isMonospace &&
+    node.text.includes('\n') &&
+    renderLocation === RenderLocation.Timeline
+  ) {
     const text = node.text;
     const firstNewline = text.indexOf('\n');
     let lang: string | null = null;
@@ -451,18 +543,28 @@ function renderNode({
       }
     }
 
-    return <CodeBlock key={key} code={codeText} lang={lang} isInvisible={isInvisible} />;
+    return (
+      <CodeBlock
+        key={key}
+        code={codeText}
+        lang={lang}
+        isInvisible={isInvisible}
+      />
+    );
   }
 
   // Code block detection: ```lang\n...\n``` in plain text (no MONOSPACE body range)
-  if (!node.isMonospace && renderLocation === RenderLocation.Timeline &&
-      node.mentions.length === 0 && CODE_BLOCK_REGEX.test(node.text)) {
-    CODE_BLOCK_REGEX.lastIndex = 0;
-    const parts: ReactElement[] = [];
+  const codeBlockMatches =
+    !node.isMonospace &&
+    renderLocation === RenderLocation.Timeline &&
+    node.mentions.length === 0
+      ? Array.from(node.text.matchAll(CODE_BLOCK_REGEX))
+      : [];
+  if (codeBlockMatches.length > 0) {
+    const parts: Array<ReactElement> = [];
     let lastIndex = 0;
-    let match;
 
-    while ((match = CODE_BLOCK_REGEX.exec(node.text)) !== null) {
+    for (const match of codeBlockMatches) {
       // Text before code block
       if (match.index > lastIndex) {
         parts.push(
@@ -475,12 +577,18 @@ function renderNode({
         );
       }
 
-      const rawLang = match[1].trim().toLowerCase();
-      const lang = rawLang && KNOWN_LANGUAGES.includes(rawLang) ? rawLang : null;
-      const codeText = match[2];
+      const rawLang = (match[1] ?? '').trim().toLowerCase();
+      const lang =
+        rawLang && KNOWN_LANGUAGES.includes(rawLang) ? rawLang : null;
+      const codeText = match[2] ?? '';
 
       parts.push(
-        <CodeBlock key={`${key}-c${parts.length}`} code={codeText} lang={lang} isInvisible={isInvisible} />
+        <CodeBlock
+          key={`${key}-c${parts.length}`}
+          code={codeText}
+          lang={lang}
+          isInvisible={isInvisible}
+        />
       );
 
       lastIndex = match.index + match[0].length;

@@ -250,6 +250,7 @@ export function NavSidebar({
           })}
           onClick={() => setIsCollapsed(prev => !prev)}
           title={isCollapsed ? 'Expand' : 'Collapse'}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         />
 
         <div

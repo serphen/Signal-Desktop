@@ -17,7 +17,10 @@ import {
   type StickerManagerPackRowControlType,
 } from './StickerManagerPackRow.dom.tsx';
 import { StickerPreviewModal } from './StickerPreviewModal.dom.tsx';
-import { RisibankCollectionBrowser } from './RisibankCollectionBrowser.dom.tsx';
+import {
+  RisibankCollectionBrowser,
+  type InstallRisibankPack,
+} from './RisibankCollectionBrowser.dom.tsx';
 import type { LocalizerType } from '../../types/Util.std.ts';
 import type { StickerPackType } from '../../state/ducks/stickers.preload.ts';
 import type { ShowToastAction } from '../../state/ducks/toast.preload.ts';
@@ -40,6 +43,7 @@ export type OwnProps = {
     packKey: string,
     options: { actionSource: 'ui' }
   ) => unknown;
+  readonly installRisibankPack: InstallRisibankPack;
   readonly installedPacks: ReadonlyArray<StickerPackType>;
   readonly knownPacks?: ReadonlyArray<StickerPackType>;
   readonly receivedPacks: ReadonlyArray<StickerPackType>;
@@ -63,6 +67,7 @@ export const StickerManager = memo(function StickerManagerInner({
   closeStickerPackPreview,
   downloadStickerPack,
   i18n,
+  installRisibankPack,
   installStickerPack,
   installedPacks,
   knownPacks,
@@ -280,6 +285,7 @@ export const StickerManager = memo(function StickerManagerInner({
       {tab === 'risibank' && (
         <RisibankCollectionBrowser
           i18n={i18n}
+          installRisibankPack={installRisibankPack}
           installedPacks={installedPacks}
         />
       )}

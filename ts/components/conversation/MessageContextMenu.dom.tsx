@@ -35,12 +35,12 @@ export function MessageContextMenu({
   renderer,
   onOpenChange,
   disabled,
-  shouldShowAdditional,
+  shouldShowAdditional: _shouldShowAdditional,
   onDebugMessage,
-  onDownload,
+  onDownload: _onDownload,
   onEdit,
-  onReplyToMessage,
-  onReact,
+  onReplyToMessage: _onReplyToMessage,
+  onReact: _onReact,
   onEndPoll,
   onMoreInfo,
   onCopy,
@@ -122,7 +122,10 @@ export function MessageContextMenu({
           </AxoMenuBuilder.Item>
         )}
         {onDeleteMessage && (
-          <span className="MessageContextMenu__delete" style={{ display: 'contents' }}>
+          <span
+            className="MessageContextMenu__delete"
+            style={{ display: 'contents' }}
+          >
             <AxoMenuBuilder.Item symbol="trash" onSelect={onDeleteMessage}>
               {i18n('icu:MessageContextMenu__deleteMessage')}
             </AxoMenuBuilder.Item>
@@ -134,7 +137,10 @@ export function MessageContextMenu({
           </AxoMenuBuilder.Item>
         )}
         {onRetryDeleteForEveryone && (
-          <span className="MessageContextMenu__delete" style={{ display: 'contents' }}>
+          <span
+            className="MessageContextMenu__delete"
+            style={{ display: 'contents' }}
+          >
             <AxoMenuBuilder.Item
               symbol="trash"
               onSelect={onRetryDeleteForEveryone}
