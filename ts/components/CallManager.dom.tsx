@@ -1,7 +1,13 @@
 // Copyright 2020 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useCallback, useEffect } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type JSX,
+  type ComponentProps,
+} from 'react';
 import lodash from 'lodash';
 import type { VideoFrameSource } from '@signalapp/ringrtc';
 import { CallNeedPermissionScreen } from './CallNeedPermissionScreen.dom.tsx';
@@ -49,7 +55,7 @@ import { createLogger } from '../logging/log.std.ts';
 import { isGroupOrAdhocActiveCall } from '../util/isGroupOrAdhocCall.std.ts';
 import { CallingAdhocCallInfo } from './CallingAdhocCallInfo.dom.tsx';
 import { callLinkRootKeyToUrl } from '../util/callLinkRootKeyToUrl.std.ts';
-import { usePrevious } from '../hooks/usePrevious.std.ts';
+import { usePreviousDeprecated } from '../hooks/usePrevious.std.ts';
 import { copyCallLink } from '../util/copyLinksWithToast.dom.ts';
 import {
   redactNotificationProfileId,
@@ -60,6 +66,7 @@ import { strictAssert } from '../util/assert.std.ts';
 import type { SetLocalPreviewContainerType } from '../services/calling.preload.ts';
 import type { ContactModalStateType } from '../types/globalModals.std.ts';
 import type { PropsType as SmartCallingParticipantMenuProps } from '../state/smart/CallingParticipantMenu.preload.tsx';
+import { AxoTheme } from '../axo/AxoTheme.dom.tsx';
 
 const { noop } = lodash;
 
@@ -103,13 +110,13 @@ export type PropsType = {
   getPresentingSources: () => void;
   isOnline: boolean;
   ringingCall: DirectIncomingCall | GroupIncomingCall | null;
-  renderDeviceSelection: () => React.JSX.Element;
+  renderDeviceSelection: () => JSX.Element;
   renderReactionPicker: (
-    props: React.ComponentProps<typeof SmartReactionPicker>
-  ) => React.JSX.Element;
+    props: ComponentProps<typeof SmartReactionPicker>
+  ) => JSX.Element;
   renderCallingParticipantMenu: (
     props: SmartCallingParticipantMenuProps
-  ) => React.JSX.Element;
+  ) => JSX.Element;
   showContactModal: (payload: ContactModalStateType) => void;
   startCall: (payload: StartCallType) => void;
   toggleParticipants: () => void;
@@ -218,7 +225,7 @@ function ActiveCallManager({
   toggleSelfViewExpanded,
   toggleSettings,
   pauseVoiceNotePlayer,
-}: ActiveCallManagerPropsType): React.JSX.Element {
+}: ActiveCallManagerPropsType): JSX.Element {
   const {
     conversation,
     hasLocalAudio,
@@ -255,9 +262,12 @@ function ActiveCallManager({
   ]);
 
   // For caching screenshare frames which update slowly, between Pip and CallScreen.
-  const imageDataCache = React.useRef<CallingImageDataCache>(new Map());
+  const imageDataCache = useRef<CallingImageDataCache>(new Map());
 
-  const previousConversationId = usePrevious(conversation.id, conversation.id);
+  const previousConversationId = usePreviousDeprecated(
+    conversation.id,
+    conversation.id
+  );
   useEffect(() => {
     if (conversation.id !== previousConversationId) {
       imageDataCache.current.clear();
@@ -374,7 +384,7 @@ function ActiveCallManager({
 
   if (showCallLobby) {
     return (
-      <>
+      <AxoTheme.Override theme="force-dark">
         <CallingLobby
           availableCameras={availableCameras}
           callMode={activeCall.callMode}
@@ -433,7 +443,7 @@ function ActiveCallManager({
               renderCallingParticipantMenu={renderCallingParticipantMenu}
             />
           ))}
-      </>
+      </AxoTheme.Override>
     );
   }
 
@@ -462,7 +472,7 @@ function ActiveCallManager({
     : [];
 
   return (
-    <>
+    <AxoTheme.Override theme="force-dark">
       <CallScreen
         activeCall={activeCall}
         approveUser={approveUser}
@@ -479,6 +489,7 @@ function ActiveCallManager({
         isCallLinkAdmin={isCallLinkAdmin}
         me={me}
         openSystemPreferencesAction={openSystemPreferencesAction}
+        renderCallingParticipantMenu={renderCallingParticipantMenu}
         renderReactionPicker={renderReactionPicker}
         sendGroupCallRaiseHand={sendGroupCallRaiseHand}
         sendGroupCallReaction={sendGroupCallReaction}
@@ -535,7 +546,7 @@ function ActiveCallManager({
             renderCallingParticipantMenu={renderCallingParticipantMenu}
           />
         ))}
-    </>
+    </AxoTheme.Override>
   );
 }
 
@@ -593,7 +604,7 @@ export function CallManager({
   toggleScreenRecordingPermissionsDialog,
   toggleSelfViewExpanded,
   toggleSettings,
-}: PropsType): React.JSX.Element | null {
+}: PropsType): JSX.Element | null {
   const isCallActive = Boolean(activeCall);
   useEffect(() => {
     setIsCallActive(isCallActive);

@@ -1,7 +1,14 @@
 // Copyright 2020 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type JSX,
+} from 'react';
 import { useSelector } from 'react-redux';
 import { useContactNameData } from '../../components/conversation/ContactName.dom.tsx';
 import { DataReader } from '../../sql/Client.preload.ts';
@@ -56,15 +63,15 @@ import { useNavActions } from '../ducks/nav.std.ts';
 
 function renderCollidingAvatars(
   props: SmartCollidingAvatarsProps
-): React.JSX.Element {
+): JSX.Element {
   return <SmartCollidingAvatars {...props} />;
 }
 
-function renderMiniPlayer(props: SmartMiniPlayerProps): React.JSX.Element {
+function renderMiniPlayer(props: SmartMiniPlayerProps): JSX.Element {
   return <SmartMiniPlayer {...props} />;
 }
 
-function renderPinnedMessagesBar(): React.JSX.Element {
+function renderPinnedMessagesBar(): JSX.Element {
   return <SmartPinnedMessagesBar />;
 }
 
@@ -142,7 +149,7 @@ export const SmartConversationHeader = memo(function SmartConversationHeader({
     onMarkUnread,
     onMoveToInbox,
     setDisappearingMessages,
-    setMuteExpiration,
+    setMuteDuration,
     setPinned,
     toggleSelectMode,
     acceptConversation,
@@ -229,9 +236,9 @@ export const SmartConversationHeader = memo(function SmartConversationHeader({
 
   const onConversationMuteExpirationChange = useCallback(
     (seconds: number) => {
-      setMuteExpiration(conversation.id, seconds);
+      setMuteDuration(conversation.id, seconds);
     },
-    [setMuteExpiration, conversation.id]
+    [setMuteDuration, conversation.id]
   );
 
   const onConversationPin = useCallback(() => {
@@ -297,11 +304,12 @@ export const SmartConversationHeader = memo(function SmartConversationHeader({
     if (!ourConversationId) {
       return;
     }
+    const currentOurConversationId = ourConversationId;
     let cancelled = false;
     async function poll() {
       const ts = await DataReader.getLastIncomingActivityTimestamp({
         conversationId: conversation.id,
-        ourConversationId: ourConversationId!,
+        ourConversationId: currentOurConversationId,
       });
       if (!cancelled) {
         setLastIncomingActivityAt(ts);

@@ -1,10 +1,9 @@
 // Copyright 2023 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from 'react';
-import type { ReactElement } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { ReactElement, JSX } from 'react';
 import classNames from 'classnames';
-import emojiRegex from 'emoji-regex';
 import lodash from 'lodash';
 
 import { linkify, SUPPORTED_PROTOCOLS } from './Linkify.dom.tsx';
@@ -52,6 +51,24 @@ import graphql from 'highlight.js/lib/languages/graphql';
 import protobuf from 'highlight.js/lib/languages/protobuf';
 import elixir from 'highlight.js/lib/languages/elixir';
 import erlang from 'highlight.js/lib/languages/erlang';
+import type {
+  BodyRangesForDisplayType,
+  DisplayBodyRangeType,
+  DisplayNode,
+  HydratedBodyRangeMention,
+} from '../../types/BodyRange.std.ts';
+import {
+  BodyRange,
+  collapseRangesToDisplayNodes,
+  groupContiguousSpoilers,
+} from '../../types/BodyRange.std.ts';
+import { AtMention } from './AtMention.dom.tsx';
+import { isLinkSneaky } from '../../types/LinkPreview.std.ts';
+import { Emojify } from './Emojify.dom.tsx';
+import { AddNewLines } from './AddNewLines.dom.tsx';
+import type { LocalizerType } from '../../types/Util.std.ts';
+import type { FunJumboEmojiSize } from '../fun/FunEmoji.dom.tsx';
+import { Emoji } from '../../axo/emoji.std.ts';
 
 hljs.registerLanguage('javascript', javascript);
 hljs.registerLanguage('js', javascript);
@@ -126,28 +143,8 @@ hljs.registerLanguage('elixir', elixir);
 hljs.registerLanguage('ex', elixir);
 hljs.registerLanguage('erlang', erlang);
 
-import type {
-  BodyRangesForDisplayType,
-  DisplayNode,
-  HydratedBodyRangeMention,
-  RangeNode,
-} from '../../types/BodyRange.std.ts';
-import {
-  BodyRange,
-  insertRange,
-  collapseRangeTree,
-  groupContiguousSpoilers,
-} from '../../types/BodyRange.std.ts';
-import { AtMention } from './AtMention.dom.tsx';
-import { isLinkSneaky } from '../../types/LinkPreview.std.ts';
-import { Emojify } from './Emojify.dom.tsx';
-import { AddNewLines } from './AddNewLines.dom.tsx';
-import type { LocalizerType } from '../../types/Util.std.ts';
-import type { FunJumboEmojiSize } from '../fun/FunEmoji.dom.tsx';
-
 const { sortBy } = lodash;
 
-const EMOJI_REGEXP = emojiRegex();
 const CODE_BLOCK_REGEX = /```(\w*)\n([\s\S]*?)```/g;
 
 function highlightCode(code: string, lang: string | null): string {
@@ -170,13 +167,12 @@ function CodeBlock({
   lang: string | null;
   isInvisible: boolean;
 }): ReactElement {
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const handleCopy = React.useCallback(() => {
-    void navigator.clipboard.writeText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }, [code]);
 
   return (
@@ -190,8 +186,13 @@ function CodeBlock({
       {lang && <div className="codeblock__lang">{lang}</div>}
       <button
         type="button"
-        className={classNames('codeblock__copy', copied && 'codeblock__copy--copied')}
-        onClick={handleCopy}
+        className={classNames(
+          'codeblock__copy',
+          copied && 'codeblock__copy--copied'
+        )}
+        onClick={() => {
+          void handleCopy();
+        }}
         aria-label="Copy code"
       >
         {copied ? 'Copied!' : 'Copy'}
@@ -203,18 +204,103 @@ function CodeBlock({
 }
 
 const KNOWN_LANGUAGES = [
-  'javascript', 'js', 'typescript', 'ts', 'python', 'py', 'java', 'c',
-  'cpp', 'c++', 'csharp', 'c#', 'cs', 'go', 'rust', 'rs', 'ruby', 'rb',
-  'php', 'swift', 'kotlin', 'scala', 'html', 'css', 'scss', 'sass',
-  'less', 'json', 'xml', 'yaml', 'yml', 'toml', 'sql', 'bash', 'sh',
-  'shell', 'zsh', 'powershell', 'ps1', 'dockerfile', 'docker', 'makefile',
-  'lua', 'perl', 'r', 'matlab', 'julia', 'elixir', 'ex', 'erlang',
-  'haskell', 'hs', 'clojure', 'clj', 'lisp', 'scheme', 'ocaml', 'ml',
-  'fsharp', 'f#', 'dart', 'zig', 'nim', 'v', 'assembly', 'asm', 'nasm',
-  'wasm', 'graphql', 'gql', 'proto', 'protobuf', 'terraform', 'tf',
-  'diff', 'patch', 'ini', 'conf', 'nginx', 'apache', 'markdown', 'md',
-  'latex', 'tex', 'csv', 'tsv', 'plaintext', 'text', 'txt', 'log',
-  'jsx', 'tsx', 'vue', 'svelte', 'astro', 'objc', 'objective-c',
+  'javascript',
+  'js',
+  'typescript',
+  'ts',
+  'python',
+  'py',
+  'java',
+  'c',
+  'cpp',
+  'c++',
+  'csharp',
+  'c#',
+  'cs',
+  'go',
+  'rust',
+  'rs',
+  'ruby',
+  'rb',
+  'php',
+  'swift',
+  'kotlin',
+  'scala',
+  'html',
+  'css',
+  'scss',
+  'sass',
+  'less',
+  'json',
+  'xml',
+  'yaml',
+  'yml',
+  'toml',
+  'sql',
+  'bash',
+  'sh',
+  'shell',
+  'zsh',
+  'powershell',
+  'ps1',
+  'dockerfile',
+  'docker',
+  'makefile',
+  'lua',
+  'perl',
+  'r',
+  'matlab',
+  'julia',
+  'elixir',
+  'ex',
+  'erlang',
+  'haskell',
+  'hs',
+  'clojure',
+  'clj',
+  'lisp',
+  'scheme',
+  'ocaml',
+  'ml',
+  'fsharp',
+  'f#',
+  'dart',
+  'zig',
+  'nim',
+  'v',
+  'assembly',
+  'asm',
+  'nasm',
+  'wasm',
+  'graphql',
+  'gql',
+  'proto',
+  'protobuf',
+  'terraform',
+  'tf',
+  'diff',
+  'patch',
+  'ini',
+  'conf',
+  'nginx',
+  'apache',
+  'markdown',
+  'md',
+  'latex',
+  'tex',
+  'csv',
+  'tsv',
+  'plaintext',
+  'text',
+  'txt',
+  'log',
+  'jsx',
+  'tsx',
+  'vue',
+  'svelte',
+  'astro',
+  'objc',
+  'objective-c',
 ];
 export enum RenderLocation {
   ConversationList = 'ConversationList',
@@ -255,45 +341,36 @@ export function MessageTextRenderer({
   renderLocation,
   textLength,
   originalMessageText,
-}: Props): React.JSX.Element {
-  const finalNodes = React.useMemo(() => {
+}: Props): JSX.Element {
+  const finalNodes = useMemo(() => {
     const links = disableLinks
       ? []
-      : extractLinks(messageText, originalMessageText);
+      : extractLinks(originalMessageText, textLength);
 
     // We need mentions to come last; they can't have children for proper rendering
     const sortedRanges = sortBy(bodyRanges, range =>
       BodyRange.isMention(range) ? 1 : 0
     );
 
-    // Create range tree, dropping bodyRanges that don't apply. Read More means truncated
-    //   strings.
+    // Prepare ranges (assign spoiler ids, drop ones that don't apply
     let spoilerCount = 0;
-    const tree = sortedRanges.reduce<ReadonlyArray<RangeNode>>(
-      (acc, range) => {
-        if (
-          BodyRange.isFormatting(range) &&
-          range.style === BodyRange.Style.SPOILER
-        ) {
-          spoilerCount += 1;
-          return insertRange(
-            {
-              ...range,
-              spoilerId: spoilerCount,
-            },
-            acc
-          );
-        }
-        if (range.start < textLength) {
-          return insertRange(range, acc);
-        }
-        return acc;
-      },
-      links.map(b => ({ ...b, ranges: [] }))
-    );
+    const preparedRanges: Array<DisplayBodyRangeType> = [];
+    for (const range of sortedRanges) {
+      if (
+        BodyRange.isFormatting(range) &&
+        range.style === BodyRange.Style.SPOILER
+      ) {
+        spoilerCount += 1;
+        preparedRanges.push({ ...range, spoilerId: spoilerCount });
+      } else if (range.start < textLength) {
+        preparedRanges.push(range);
+      }
+    }
 
-    // Turn tree into flat list for proper spoiler rendering
-    const nodes = collapseRangeTree({ tree, text: messageText });
+    const nodes = collapseRangesToDisplayNodes(messageText, [
+      ...links,
+      ...preparedRanges,
+    ]);
 
     // Group all contigusous spoilers to create one parent spoiler element in the DOM
     return groupContiguousSpoilers(nodes);
@@ -448,7 +525,11 @@ function renderNode({
   }
 
   // Code block detection: monospace body range with newlines → render as <pre><code>
-  if (node.isMonospace && node.text.includes('\n') && renderLocation === RenderLocation.Timeline) {
+  if (
+    node.isMonospace &&
+    node.text.includes('\n') &&
+    renderLocation === RenderLocation.Timeline
+  ) {
     const text = node.text;
     const firstNewline = text.indexOf('\n');
     let lang: string | null = null;
@@ -462,18 +543,28 @@ function renderNode({
       }
     }
 
-    return <CodeBlock key={key} code={codeText} lang={lang} isInvisible={isInvisible} />;
+    return (
+      <CodeBlock
+        key={key}
+        code={codeText}
+        lang={lang}
+        isInvisible={isInvisible}
+      />
+    );
   }
 
   // Code block detection: ```lang\n...\n``` in plain text (no MONOSPACE body range)
-  if (!node.isMonospace && renderLocation === RenderLocation.Timeline &&
-      node.mentions.length === 0 && CODE_BLOCK_REGEX.test(node.text)) {
-    CODE_BLOCK_REGEX.lastIndex = 0;
-    const parts: ReactElement[] = [];
+  const codeBlockMatches =
+    !node.isMonospace &&
+    renderLocation === RenderLocation.Timeline &&
+    node.mentions.length === 0
+      ? Array.from(node.text.matchAll(CODE_BLOCK_REGEX))
+      : [];
+  if (codeBlockMatches.length > 0) {
+    const parts: Array<ReactElement> = [];
     let lastIndex = 0;
-    let match;
 
-    while ((match = CODE_BLOCK_REGEX.exec(node.text)) !== null) {
+    for (const match of codeBlockMatches) {
       // Text before code block
       if (match.index > lastIndex) {
         parts.push(
@@ -487,11 +578,17 @@ function renderNode({
       }
 
       const rawLang = (match[1] ?? '').trim().toLowerCase();
-      const lang = rawLang && KNOWN_LANGUAGES.includes(rawLang) ? rawLang : null;
+      const lang =
+        rawLang && KNOWN_LANGUAGES.includes(rawLang) ? rawLang : null;
       const codeText = match[2] ?? '';
 
       parts.push(
-        <CodeBlock key={`${key}-c${parts.length}`} code={codeText} lang={lang} isInvisible={isInvisible} />
+        <CodeBlock
+          key={`${key}-c${parts.length}`}
+          code={codeText}
+          lang={lang}
+          isInvisible={isInvisible}
+        />
       );
 
       lastIndex = match.index + match[0].length;
@@ -523,7 +620,7 @@ function renderNode({
   if (
     node.url &&
     SUPPORTED_PROTOCOLS.test(node.url) &&
-    !isLinkSneaky(node.url)
+    isLinkSneaky(node.url) !== 'yes'
   ) {
     return (
       <a
@@ -687,35 +784,23 @@ function renderText({
   );
 }
 
-function extractLinks(
-  messageText: string,
-  // Full, untruncated message text
-  originalMessageText: string
+/** @testexport */
+export function extractLinks(
+  originalMessageText: string,
+  displayedTextLength: number
 ): ReadonlyArray<BodyRange<{ url: string }>> {
   // to support emojis immediately before links
   // we replace emojis with a space for each byte
-  const matches = linkify.match(
-    originalMessageText.replace(EMOJI_REGEXP, s => ' '.repeat(s.length))
-  );
+  const matches = linkify
+    .match(Emoji.replaceEmojiWithSpaces(originalMessageText))
+    // Only linkify links that are fully visible
+    ?.filter(match => match.lastIndex <= displayedTextLength);
 
   if (matches == null) {
     return [];
   }
 
-  // Only return matches present in the `messageText`
-  const currentMatches = matches.filter(({ index, lastIndex, url }) => {
-    if (index >= messageText.length) {
-      return false;
-    }
-
-    if (lastIndex > messageText.length) {
-      return false;
-    }
-
-    return messageText.slice(index, lastIndex) === url;
-  });
-
-  return currentMatches.map(match => {
+  return matches.map(match => {
     return {
       start: match.index,
       length: match.lastIndex - match.index,

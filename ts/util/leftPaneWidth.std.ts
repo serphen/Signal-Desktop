@@ -9,7 +9,7 @@ const { clamp } = lodash;
 
 // Midnight: no compact icon-only mode, just continuous resize
 export const MIN_WIDTH = 150;
-export const SNAP_WIDTH = 150;
+const SNAP_WIDTH = 150;
 export const MIN_FULL_WIDTH = 150;
 export const MAX_WIDTH = 380;
 strictAssert(

@@ -70,9 +70,8 @@ export class Storage implements StorageInterface {
     }
 
     this.#items[key] = value;
-    await DataWriter.createOrUpdateItem({ id: key, value });
-
     window.reduxActions?.items.putItemExternal(key, value);
+    await DataWriter.createOrUpdateItem({ id: key, value });
   }
 
   public async remove<K extends keyof Access>(key: K): Promise<void> {
@@ -100,6 +99,7 @@ export class Storage implements StorageInterface {
     this.reset();
 
     Object.assign(this.#items, await DataReader.getAllItems());
+    this.blocked.load();
 
     this.#ready = true;
     this.#callListeners();
@@ -108,6 +108,7 @@ export class Storage implements StorageInterface {
   public reset(): void {
     this.#ready = false;
     this.#items = Object.create(null);
+    this.blocked.reset();
   }
 
   public getItemsState(): Partial<Access> {

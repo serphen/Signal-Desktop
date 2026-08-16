@@ -1,7 +1,7 @@
 // Copyright 2019 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useCallback, useMemo, memo } from 'react';
+import { useCallback, useMemo, memo } from 'react';
 import { useSelector } from 'react-redux';
 import { CompositionArea } from '../../components/CompositionArea.dom.tsx';
 import { useContactNameData } from '../../components/conversation/ContactName.dom.tsx';
@@ -230,8 +230,13 @@ export const SmartCompositionArea = memo(function SmartCompositionArea({
     showConversation,
   } = useConversationsActions();
   const { pushPanelForConversation } = useNavActions();
-  const { cancelRecording, completeRecording, startRecording, errorRecording } =
-    useAudioRecorderActions();
+  const {
+    cancelRecording,
+    completeRecording,
+    warmupRecording,
+    startRecording,
+    errorRecording,
+  } = useAudioRecorderActions();
   const { onUseEmoji } = useEmojisActions();
   const {
     showGV2MigrationDialog,
@@ -242,6 +247,23 @@ export const SmartCompositionArea = memo(function SmartCompositionArea({
   const { onEditorStateChange } = useComposerActions();
 
   AutoSubstituteAsciiEmojis.enable(itemStorage.get('autoConvertEmoji', true));
+  const { accountEntropyPool } = items;
+
+  const textIncludesRecoveryKey = useCallback(
+    (text: string) => {
+      if (!accountEntropyPool) {
+        return false;
+      }
+      const normalizedText = text
+        .toUpperCase()
+        .replace(/\s/g, '')
+        .replace(/#/g, 'O')
+        .replace(/=/g, '0');
+
+      return normalizedText.includes(accountEntropyPool.toUpperCase());
+    },
+    [accountEntropyPool]
+  );
 
   return (
     <CompositionArea
@@ -270,6 +292,7 @@ export const SmartCompositionArea = memo(function SmartCompositionArea({
       theme={theme}
       convertDraftBodyRangesIntoHydrated={convertDraftBodyRangesIntoHydrated}
       onTextTooLong={onTextTooLong}
+      textIncludesRecoveryKey={textIncludesRecoveryKey}
       pushPanelForConversation={pushPanelForConversation}
       discardEditMessage={discardEditMessage}
       onCloseLinkPreview={onCloseLinkPreview}
@@ -281,6 +304,7 @@ export const SmartCompositionArea = memo(function SmartCompositionArea({
       recordingState={recordingState}
       cancelRecording={cancelRecording}
       completeRecording={completeRecording}
+      warmupRecording={warmupRecording}
       startRecording={startRecording}
       errorRecording={errorRecording}
       // AttachmentsList

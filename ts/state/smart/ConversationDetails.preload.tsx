@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import lodash from 'lodash';
-import React, { memo, useCallback, useState, useEffect } from 'react';
+import { memo, useCallback, useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { ConversationDetails } from '../../components/conversation/conversation-details/ConversationDetails.dom.tsx';
 import {
@@ -137,7 +137,7 @@ export const SmartConversationDetails = memo(function SmartConversationDetails({
     reportSpam,
     saveAvatarToDisk,
     setDisappearingMessages,
-    setMuteExpiration,
+    setMuteDuration,
     showConversation,
     startAvatarDownload,
     terminateGroup,
@@ -312,7 +312,7 @@ export const SmartConversationDetails = memo(function SmartConversationDetails({
       searchInConversation={searchInConversation}
       selectedNavTab={selectedNavTab}
       setDisappearingMessages={setDisappearingMessages}
-      setMuteExpiration={setMuteExpiration}
+      setMuteDuration={setMuteDuration}
       showContactModal={showContactModal}
       showConversation={showConversation}
       showToast={showToast}

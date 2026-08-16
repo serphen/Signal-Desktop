@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { JSX, ReactElement } from 'react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as durations from '../../util/durations/index.std.ts';
 import type { LocalizerType } from '../../types/Util.std.ts';
 import { formatDate } from '../../util/formatTimestamp.dom.ts';
@@ -22,10 +22,10 @@ export function TimelineDateHeader({
     <div className={tw('flex justify-center p-5')}>
       <div
         className={tw(
-          'type-body-medium text-label-primary select-none',
+          'type-body-medium text-secondary',
           isSignalConversation
-            ? 'rounded-3xl border border-border-secondary bg-legacy-signal-conversation-bg px-2.5 py-1 ' +
-                'type-body-small font-medium text-label-secondary dark:text-label-secondary-on-color'
+            ? 'rounded-3xl border border-secondary bg-(--axo-color-legacy-signal-conversation-bg) px-2.5 py-1 ' +
+                'type-body-small font-medium dark:text-secondary-oncolor'
             : null
         )}
       >

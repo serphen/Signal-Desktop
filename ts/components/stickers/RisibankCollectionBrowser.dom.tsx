@@ -5,7 +5,6 @@ import * as React from 'react';
 import type { LocalizerType } from '../../types/Util.std.ts';
 import type { StickerPackType } from '../../state/ducks/stickers.preload.ts';
 import { SignalService as Proto } from '../../protobuf/index.std.ts';
-import { putStickers } from '../../textsecure/WebAPI.preload.ts';
 
 type RisibankMedia = {
   id: number;
@@ -38,8 +37,15 @@ type RisibankCollectionFull = RisibankCollection & {
 
 export type Props = {
   readonly i18n: LocalizerType;
+  readonly installRisibankPack: InstallRisibankPack;
   readonly installedPacks: ReadonlyArray<StickerPackType>;
 };
+
+export type InstallRisibankPack = (
+  encryptedManifest: Uint8Array<ArrayBuffer>,
+  encryptedStickers: ReadonlyArray<Uint8Array<ArrayBuffer>>,
+  packKey: string
+) => Promise<void>;
 
 const API_BASE = 'https://risibank.fr/api/v1';
 const DEBOUNCE_MS = 300;
@@ -51,9 +57,10 @@ function makeRbTag(type: 'c' | 's', id: number): string {
   return `[rb:${type}${id}]`;
 }
 
-function extractInstalledRbIds(
-  packs: ReadonlyArray<StickerPackType>
-): { collections: Set<number>; stickers: Set<number> } {
+function extractInstalledRbIds(packs: ReadonlyArray<StickerPackType>): {
+  collections: Set<number>;
+  stickers: Set<number>;
+} {
   const collections = new Set<number>();
   const stickers = new Set<number>();
   for (const pack of packs) {
@@ -82,13 +89,9 @@ type EncryptKeys = { aesKey: CryptoKey; macKey: CryptoKey };
 async function deriveKeys(
   packKey: Uint8Array<ArrayBuffer>
 ): Promise<EncryptKeys> {
-  const baseKey = await crypto.subtle.importKey(
-    'raw',
-    packKey,
-    'HKDF',
-    false,
-    ['deriveBits']
-  );
+  const baseKey = await crypto.subtle.importKey('raw', packKey, 'HKDF', false, [
+    'deriveBits',
+  ]);
   const bits = await crypto.subtle.deriveBits(
     { name: 'hkdf', hash: 'SHA-256', salt: PACK_KEY_SALT, info: PACK_KEY_INFO },
     baseKey,
@@ -155,13 +158,39 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality?: number
+): Promise<Blob | null> {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+async function findAcceptableWebP(
+  canvas: HTMLCanvasElement,
+  quality: number
+): Promise<Blob | null> {
+  if (quality <= 0.1) {
+    return null;
+  }
+
+  const blob = await canvasToBlob(canvas, 'image/webp', quality);
+  if (blob && blob.size <= MAX_STICKER_BYTES) {
+    return blob;
+  }
+  return findAcceptableWebP(canvas, quality - 0.1);
+}
+
 async function convertToWebP(url: string): Promise<Uint8Array<ArrayBuffer>> {
   const img = await loadImage(url);
 
   const canvas = document.createElement('canvas');
   canvas.width = STICKER_SIZE;
   canvas.height = STICKER_SIZE;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Unable to create a 2D canvas context');
+  }
 
   // Fit image into 512x512, centered, transparent background
   ctx.clearRect(0, 0, STICKER_SIZE, STICKER_SIZE);
@@ -173,21 +202,13 @@ async function convertToWebP(url: string): Promise<Uint8Array<ArrayBuffer>> {
   ctx.drawImage(img, x, y, w, h);
 
   // Try WebP at decreasing quality until under 300KB
-  let quality = 0.9;
-  while (quality > 0.1) {
-    const blob = await new Promise<Blob | null>(resolve =>
-      canvas.toBlob(resolve, 'image/webp', quality)
-    );
-    if (blob && blob.size <= MAX_STICKER_BYTES) {
-      return new Uint8Array(await blob.arrayBuffer());
-    }
-    quality -= 0.1;
+  const webpBlob = await findAcceptableWebP(canvas, 0.9);
+  if (webpBlob) {
+    return new Uint8Array(await webpBlob.arrayBuffer());
   }
 
   // Fallback: PNG (for very small/simple images)
-  const pngBlob = await new Promise<Blob | null>(resolve =>
-    canvas.toBlob(resolve, 'image/png')
-  );
+  const pngBlob = await canvasToBlob(canvas, 'image/png');
   if (pngBlob) {
     return new Uint8Array(await pngBlob.arrayBuffer());
   }
@@ -202,12 +223,10 @@ const STICKERS_PER_PACK = 25;
 async function uploadOnePack(
   title: string,
   author: string,
-  mediaUrls: Array<string>
+  mediaUrls: Array<string>,
+  installRisibankPack: InstallRisibankPack
 ): Promise<void> {
-  const imageBuffers: Array<Uint8Array<ArrayBuffer>> = [];
-  for (const url of mediaUrls) {
-    imageBuffers.push(await convertToWebP(url));
-  }
+  const imageBuffers = await Promise.all(mediaUrls.map(convertToWebP));
 
   const packKey = new Uint8Array(PACK_KEY_SIZE);
   crypto.getRandomValues(packKey);
@@ -225,19 +244,20 @@ async function uploadOnePack(
     imageBuffers.map(buf => encryptAttachment(buf, keys))
   );
 
-  const packId = await putStickers(encryptedManifest, encryptedImages);
-
   const b64Key = toBase64(packKey);
-  await window.Events.installStickerPack(packId, b64Key);
+  await installRisibankPack(encryptedManifest, encryptedImages, b64Key);
 
   // eslint-disable-next-line no-console
-  console.log(`Risibank pack installed: "${title}" id=${packId} (${mediaUrls.length} stickers)`);
+  console.log(
+    `Risibank pack installed: "${title}" (${mediaUrls.length} stickers)`
+  );
 }
 
 async function installRisibankCollection(
   medias: Array<RisibankMedia>,
   collection: RisibankCollection,
-  setInstalling: (id: number | null) => void
+  setInstalling: (id: number | null) => void,
+  installRisibankPack: InstallRisibankPack
 ): Promise<void> {
   setInstalling(collection.id);
   try {
@@ -250,19 +270,25 @@ async function installRisibankCollection(
     const urls = medias.map(m => m.cache_url);
     const totalPacks = Math.ceil(urls.length / STICKERS_PER_PACK);
 
-    for (let i = 0; i < totalPacks; i++) {
+    const uploads = Array.from({ length: totalPacks }, (_, packIndex) => {
       const chunk = urls.slice(
-        i * STICKERS_PER_PACK,
-        (i + 1) * STICKERS_PER_PACK
+        packIndex * STICKERS_PER_PACK,
+        (packIndex + 1) * STICKERS_PER_PACK
       );
       const tag = makeRbTag('c', collection.id);
-      const title =
-        totalPacks === 1
-          ? `${collection.name} ${tag}`
-          : `${collection.name} (${i + 1}/${totalPacks}) ${tag}`;
+      let title = `${collection.name} ${tag}`;
+      if (totalPacks > 1) {
+        title = `${collection.name} (${packIndex + 1}/${totalPacks}) ${tag}`;
+      }
 
-      await uploadOnePack(title, collection.user.username_custom, chunk);
-    }
+      return uploadOnePack(
+        title,
+        collection.user.username_custom,
+        chunk,
+        installRisibankPack
+      );
+    });
+    await Promise.all(uploads);
 
     // eslint-disable-next-line no-console
     console.log(
@@ -278,13 +304,19 @@ async function installRisibankCollection(
 
 async function installSingleSticker(
   sticker: RisibankStickerResult,
-  setInstalling: (id: number | null) => void
+  setInstalling: (id: number | null) => void,
+  installRisibankPack: InstallRisibankPack
 ): Promise<void> {
   setInstalling(sticker.id);
   try {
     const name = sticker.slug || `Sticker #${sticker.id}`;
     const tag = makeRbTag('s', sticker.id);
-    await uploadOnePack(`${name} ${tag}`, sticker.user.username_custom, [sticker.cache_url]);
+    await uploadOnePack(
+      `${name} ${tag}`,
+      sticker.user.username_custom,
+      [sticker.cache_url],
+      installRisibankPack
+    );
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('Failed to install single sticker:', err);
@@ -306,7 +338,10 @@ function CollectionDetail({
   onBack: () => void;
   installingId: number | null;
   isInstalled: boolean;
-  onInstall: (medias: Array<RisibankMedia>, collection: RisibankCollection) => void;
+  onInstall: (
+    medias: Array<RisibankMedia>,
+    collection: RisibankCollection
+  ) => void;
 }) {
   const [medias, setMedias] = React.useState<Array<RisibankMedia> | null>(null);
   const [loadingDetail, setLoadingDetail] = React.useState(true);
@@ -339,6 +374,13 @@ function CollectionDetail({
     };
   }, [collection.id]);
 
+  let installButtonLabel = 'Install';
+  if (isInstalled) {
+    installButtonLabel = 'Installed';
+  } else if (installingId === collection.id) {
+    installButtonLabel = 'Installing...';
+  }
+
   return (
     <div className="risibank-detail">
       <div className="risibank-detail__header">
@@ -358,14 +400,15 @@ function CollectionDetail({
         <button
           type="button"
           className="risibank-browser__install-btn risibank-detail__install-btn"
-          disabled={isInstalled || installingId != null || !medias || medias.length === 0}
+          disabled={
+            isInstalled ||
+            installingId != null ||
+            !medias ||
+            medias.length === 0
+          }
           onClick={() => medias && onInstall(medias, collection)}
         >
-          {isInstalled
-            ? 'Installed'
-            : installingId === collection.id
-              ? 'Installing...'
-              : 'Install'}
+          {installButtonLabel}
         </button>
       </div>
       <div className="risibank-detail__stickers">
@@ -378,9 +421,9 @@ function CollectionDetail({
         {!loadingDetail &&
           medias &&
           medias.length > 0 &&
-          medias.map((media, idx) => (
+          medias.map(media => (
             <img
-              key={idx}
+              key={media.id}
               className="risibank-detail__sticker-img"
               src={media.cache_url}
               alt=""
@@ -395,7 +438,10 @@ function CollectionDetail({
 // -- Main component --
 
 export const RisibankCollectionBrowser = React.memo(
-  function RisibankCollectionBrowserInner({ installedPacks }: Props) {
+  function RisibankCollectionBrowserInner({
+    installRisibankPack,
+    installedPacks,
+  }: Props) {
     const [searchQuery, setSearchQuery] = React.useState('');
     const [collections, setCollections] = React.useState<
       Array<RisibankCollection>
@@ -412,10 +458,12 @@ export const RisibankCollectionBrowser = React.memo(
     );
 
     // Scan locally installed packs for [rb:cXXX] / [rb:sXXX] tags
-    const { installedCollectionIds, installedStickerIds } = React.useMemo(() => {
-      const { collections: c, stickers: s } = extractInstalledRbIds(installedPacks);
-      return { installedCollectionIds: c, installedStickerIds: s };
-    }, [installedPacks]);
+    const { installedCollectionIds, installedStickerIds } =
+      React.useMemo(() => {
+        const { collections: c, stickers: s } =
+          extractInstalledRbIds(installedPacks);
+        return { installedCollectionIds: c, installedStickerIds: s };
+      }, [installedPacks]);
 
     const isCollectionInstalled = React.useCallback(
       (id: number) => installedCollectionIds.has(id),
@@ -442,7 +490,7 @@ export const RisibankCollectionBrowser = React.memo(
           const data = await collResp.json();
           const items: Array<RisibankCollection> = Array.isArray(data)
             ? data
-            : data.collections ?? [];
+            : (data.collections ?? []);
           setCollections(items);
         } else {
           setCollections([]);
@@ -502,9 +550,14 @@ export const RisibankCollectionBrowser = React.memo(
         if (installingId != null) {
           return;
         }
-        void installRisibankCollection(medias, collection, setInstallingId);
+        void installRisibankCollection(
+          medias,
+          collection,
+          setInstallingId,
+          installRisibankPack
+        );
       },
-      [installingId]
+      [installRisibankPack, installingId]
     );
 
     const handleInstallSticker = React.useCallback(
@@ -512,9 +565,13 @@ export const RisibankCollectionBrowser = React.memo(
         if (installingId != null || isStickerInstalled(sticker.id)) {
           return;
         }
-        void installSingleSticker(sticker, setInstallingId);
+        void installSingleSticker(
+          sticker,
+          setInstallingId,
+          installRisibankPack
+        );
       },
-      [installingId, isStickerInstalled]
+      [installRisibankPack, installingId, isStickerInstalled]
     );
 
     // Detail view
@@ -534,7 +591,8 @@ export const RisibankCollectionBrowser = React.memo(
 
     const hasCollections = !loading && collections.length > 0;
     const hasStickers = !loading && stickers.length > 0;
-    const hasNothing = !loading && collections.length === 0 && stickers.length === 0;
+    const hasNothing =
+      !loading && collections.length === 0 && stickers.length === 0;
 
     // Grid view
     return (
@@ -543,6 +601,7 @@ export const RisibankCollectionBrowser = React.memo(
           <input
             type="text"
             className="risibank-browser__search-input"
+            aria-label="Search Risibank"
             placeholder="Search Risibank..."
             value={searchQuery}
             onChange={handleSearchChange}
@@ -559,47 +618,50 @@ export const RisibankCollectionBrowser = React.memo(
           {hasCollections && (
             <>
               {searchQuery.trim() && (
-                <div className="risibank-browser__section-label">Collections</div>
+                <div className="risibank-browser__section-label">
+                  Collections
+                </div>
               )}
               <div className="risibank-browser__grid">
                 {collections.map(collection => {
                   const collInstalled = isCollectionInstalled(collection.id);
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={collection.id}
-                      className={`risibank-browser__card${collInstalled ? ' risibank-browser__card--installed' : ''}`}
+                      className={`risibank-browser__card${collInstalled ? 'risibank-browser__card--installed' : ''}`}
                       onClick={() => setSelectedCollection(collection)}
                     >
                       <div className="risibank-browser__card-previews">
-                        {collection.preview_medias
-                          .slice(0, 4)
-                          .map((media, idx) => (
-                            <img
-                              key={idx}
-                              className="risibank-browser__card-preview-img"
-                              src={media.cache_url}
-                              alt=""
-                              loading="lazy"
-                            />
-                          ))}
+                        {collection.preview_medias.slice(0, 4).map(media => (
+                          <img
+                            key={media.id}
+                            className="risibank-browser__card-preview-img"
+                            src={media.cache_url}
+                            alt=""
+                            loading="lazy"
+                          />
+                        ))}
                       </div>
                       <div className="risibank-browser__card-info">
                         <div className="risibank-browser__card-name">
                           {collection.name}
                         </div>
                         <div className="risibank-browser__card-meta">
-                          {collInstalled
-                            ? 'Installed'
-                            : (
-                              <>
-                                {collection.user.username_custom}
-                                {' \u00b7 '}
-                                <span className="risibank-browser__card-count">{collection.media_count}</span>
-                              </>
-                            )}
+                          {collInstalled ? (
+                            'Installed'
+                          ) : (
+                            <>
+                              {collection.user.username_custom}
+                              {' \u00b7 '}
+                              <span className="risibank-browser__card-count">
+                                {collection.media_count}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -614,11 +676,21 @@ export const RisibankCollectionBrowser = React.memo(
                 {stickers.map(sticker => {
                   const installed = isStickerInstalled(sticker.id);
                   const installing = installingId === sticker.id;
+                  let stickerMeta = sticker.user.username_custom;
+                  if (installed) {
+                    stickerMeta = 'Installed';
+                  } else if (installing) {
+                    stickerMeta = 'Installing...';
+                  }
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={sticker.id}
-                      className={`risibank-browser__card risibank-browser__card--sticker${installed ? ' risibank-browser__card--installed' : ''}`}
-                      onClick={() => !installed && handleInstallSticker(sticker)}
+                      className={`risibank-browser__card risibank-browser__card--sticker${installed ? 'risibank-browser__card--installed' : ''}`}
+                      disabled={installed || installing}
+                      onClick={() =>
+                        !installed && handleInstallSticker(sticker)
+                      }
                     >
                       <div className="risibank-browser__card-previews risibank-browser__card-previews--single">
                         <img
@@ -633,14 +705,10 @@ export const RisibankCollectionBrowser = React.memo(
                           {sticker.slug || `#${sticker.id}`}
                         </div>
                         <div className="risibank-browser__card-meta">
-                          {installed
-                            ? 'Installed'
-                            : installing
-                              ? 'Installing...'
-                              : sticker.user.username_custom}
+                          {stickerMeta}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

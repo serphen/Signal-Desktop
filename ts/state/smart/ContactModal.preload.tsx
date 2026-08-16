@@ -1,7 +1,7 @@
 // Copyright 2020 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { ContactModal } from '../../components/conversation/ContactModal.dom.tsx';
 import { getAreWeASubscriber, getItems } from '../selectors/items.dom.ts';
@@ -15,7 +15,6 @@ import { getHasStoriesSelector } from '../selectors/stories2.dom.ts';
 import {
   getActiveCallState,
   getCallLinkSelector,
-  isInFullScreenCall as getIsInFullScreenCall,
   getParticipantInActiveCall,
 } from '../selectors/calling.std.ts';
 import { useStoriesActions } from '../ducks/stories.preload.ts';
@@ -29,6 +28,7 @@ import { isCallLinkAdmin } from '../../types/CallLink.std.ts';
 import { isFeaturedEnabledSelector } from '../../util/isFeatureEnabled.dom.ts';
 import { useNavActions } from '../ducks/nav.std.ts';
 import { NavTab, SettingsPage } from '../../types/Nav.std.ts';
+import { getIsInFullScreenCall } from '../selectors/isInFullScreenCall.std.ts';
 
 export const SmartContactModal = memo(function SmartContactModal() {
   const i18n = useSelector(getIntl);

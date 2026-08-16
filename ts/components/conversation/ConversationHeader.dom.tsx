@@ -1,8 +1,8 @@
 // Copyright 2018 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import type { RefObject } from 'react';
-import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
+import type { RefObject, JSX, ReactNode } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import type { ReadonlyDeep } from 'type-fest';
 import type { BadgeType } from '../../badges/types.std.ts';
 import {
@@ -18,9 +18,7 @@ import { getMuteOptions } from '../../util/getMuteOptions.std.ts';
 import { isConversationMuted } from '../../util/isConversationMuted.std.ts';
 import { isInSystemContacts } from '../../util/isInSystemContacts.std.ts';
 import { missingCaseError } from '../../util/missingCaseError.std.ts';
-import { Alert } from '../Alert.dom.tsx';
 import { Avatar, AvatarSize } from '../Avatar.dom.tsx';
-import { ConfirmationDialog } from '../ConfirmationDialog.dom.tsx';
 import { DisappearingTimeDialog } from '../DisappearingTimeDialog.dom.tsx';
 import { InContactsIcon } from '../InContactsIcon.dom.tsx';
 import { UserText } from '../UserText.dom.tsx';
@@ -30,7 +28,10 @@ import {
   MessageRequestState,
 } from './MessageRequestActionsConfirmation.dom.tsx';
 import type { MinimalConversation } from '../../hooks/useMinimalConversation.std.ts';
-import { InAnotherCallTooltip } from './InAnotherCallTooltip.dom.tsx';
+import {
+  getTooltipContent,
+  InAnotherCallTooltip,
+} from './InAnotherCallTooltip.dom.tsx';
 import { DeleteMessagesConfirmationDialog } from '../DeleteMessagesConfirmationDialog.dom.tsx';
 import { AxoDropdownMenu } from '../../axo/AxoDropdownMenu.dom.tsx';
 import { strictAssert } from '../../util/assert.std.ts';
@@ -54,6 +55,7 @@ import { AxoDragRegion } from '../../axo/AxoDragRegion.dom.tsx';
 import { OfficialChatInlineBadge } from './OfficialChatInlineBadge.dom.tsx';
 import { AxoIconButton } from '../../axo/AxoIconButton.dom.tsx';
 import { AxoButton } from '../../axo/AxoButton.dom.tsx';
+import { AxoConfirmDialog } from '../../axo/AxoConfirmDialog.dom.tsx';
 import { formatDateTimeShort } from '../../util/formatTimestamp.dom.ts';
 
 function HeaderInfoTitle({
@@ -71,7 +73,7 @@ function HeaderInfoTitle({
   i18n: LocalizerType;
   isMe: boolean;
   isSignalConversation: boolean;
-  headerRef: React.RefObject<HTMLDivElement | null>;
+  headerRef: RefObject<HTMLDivElement | null>;
 }) {
   if (isSignalConversation) {
     return (
@@ -116,12 +118,12 @@ export enum OutgoingCallButtonStyle {
 
 export type RenderCollidingAvatars = (
   props: SmartCollidingAvatarsProps
-) => React.JSX.Element;
+) => JSX.Element;
 
 export type RenderMiniPlayer = (options: {
   shouldFlow: boolean;
-}) => React.JSX.Element;
-export type RenderPinnedMessagesBar = () => React.JSX.Element;
+}) => JSX.Element;
+export type RenderPinnedMessagesBar = () => JSX.Element;
 
 export type AcknowledgeGroupMemberNameCollisions = (
   conversationId: string,
@@ -246,7 +248,7 @@ export const ConversationHeader = memo(function ConversationHeader({
   renderPinnedMessagesBar,
 
   lastIncomingActivityAt,
-}: PropsType): React.JSX.Element | null {
+}: PropsType): JSX.Element | null {
   // Comes from a third-party dependency
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -267,6 +269,8 @@ export const ConversationHeader = memo(function ConversationHeader({
   );
 
   const isTerminated = Boolean(conversation.terminated);
+  const areWeMember =
+    conversation.type === 'group' && !isTerminated && !conversation.left;
   const isMuted = isConversationMuted(conversation);
 
   if (hasPanelShowing) {
@@ -298,6 +302,7 @@ export const ConversationHeader = memo(function ConversationHeader({
           onClose={() => {
             setHasDeleteMessagesConfirmation(false);
           }}
+          areWeMember={areWeMember}
         />
       )}
       {hasLeaveGroupConfirmation && (
@@ -364,7 +369,7 @@ export const ConversationHeader = memo(function ConversationHeader({
                   symbol={isMuted ? 'bell-slash' : 'bell'}
                   size="md"
                   iconWeight={300}
-                  variant="borderless-secondary"
+                  variant="implied-secondary"
                   onClick={() =>
                     onConversationMuteExpirationChange(
                       isMuted ? 0 : Number.MAX_SAFE_INTEGER
@@ -379,7 +384,7 @@ export const ConversationHeader = memo(function ConversationHeader({
                 iconWeight={300}
                 onClick={onSearchInConversation}
                 label={i18n('icu:search')}
-                variant="borderless-secondary"
+                variant="implied-secondary"
               />
 
               <AxoDropdownMenu.Root>
@@ -390,7 +395,7 @@ export const ConversationHeader = memo(function ConversationHeader({
                     onClick={onSearchInConversation}
                     symbol="more"
                     label={i18n('icu:moreInfo')}
-                    variant="borderless-secondary"
+                    variant="implied-secondary"
                   />
                 </AxoDropdownMenu.Trigger>
                 <HeaderDropdownMenuContent
@@ -974,14 +979,18 @@ function OutgoingCallButtons({
   | 'onOutgoingAudioCall'
   | 'onOutgoingVideoCall'
   | 'outgoingCallButtonStyle'
->): React.JSX.Element | null {
+>): JSX.Element | null {
   const disabled =
     conversation.type === 'group' &&
     ((conversation.announcementsOnly && !conversation.areWeAdmin) ||
       conversation.terminated);
   const inAnotherCall = !disabled && hasActiveCall;
 
-  const videoButton = (
+  const callButtonTooltip = inAnotherCall
+    ? { label: getTooltipContent(i18n) }
+    : true;
+
+  const videoElement = (
     <div
       className={
         inAnotherCall || disabled ? tw('opacity-50 dark:opacity-40') : undefined
@@ -993,16 +1002,10 @@ function OutgoingCallButtons({
         size="md"
         onClick={onOutgoingVideoCall}
         label={i18n('icu:makeOutgoingVideoCall')}
-        // A separate tooltip is shown if we are inAnotherCall
-        tooltip={!inAnotherCall}
-        variant="borderless-secondary"
+        tooltip={callButtonTooltip}
+        variant="implied-secondary"
       />
     </div>
-  );
-  const videoElement = inAnotherCall ? (
-    <InAnotherCallTooltip i18n={i18n}>{videoButton}</InAnotherCallTooltip>
-  ) : (
-    videoButton
   );
 
   const startCallShortcuts = useStartCallShortcuts(
@@ -1018,7 +1021,7 @@ function OutgoingCallButtons({
       return videoElement;
     case OutgoingCallButtonStyle.Both:
       // oxlint-disable-next-line no-case-declarations
-      const audioButton = (
+      const audioElement = (
         <div
           className={
             inAnotherCall ? tw('opacity-50 dark:opacity-40') : undefined
@@ -1030,9 +1033,8 @@ function OutgoingCallButtons({
             size="md"
             onClick={onOutgoingAudioCall}
             label={i18n('icu:makeOutgoingCall')}
-            // A separate tooltip is shown if we are inAnotherCall
-            tooltip={!inAnotherCall}
-            variant="borderless-secondary"
+            tooltip={callButtonTooltip}
+            variant="implied-secondary"
           />
         </div>
       );
@@ -1040,44 +1042,41 @@ function OutgoingCallButtons({
       return (
         <>
           {videoElement}
-          {inAnotherCall ? (
-            <InAnotherCallTooltip i18n={i18n}>
-              {audioButton}
-            </InAnotherCallTooltip>
-          ) : (
-            audioButton
-          )}
+          {audioElement}
         </>
       );
     case OutgoingCallButtonStyle.Join:
-      // oxlint-disable-next-line no-case-declarations
-      const joinButton = (
+      return (
         <>
-          <div className={tw('@min-[500px]:hidden')}>
+          <div
+            className={tw(
+              '@min-[500px]:hidden',
+              inAnotherCall && 'opacity-50 dark:opacity-40'
+            )}
+          >
             <AxoIconButton.Root
               symbol="videocamera-fill"
               size="md"
               label={i18n('icu:joinOngoingCall')}
               onClick={onOutgoingVideoCall}
-              variant="affirmative"
+              variant="strong-affirmative"
+              tooltip={callButtonTooltip}
             />
           </div>
           <div className={tw('hidden @min-[500px]:block')}>
-            <AxoButton.Root
-              size="md"
-              symbol="videocamera-fill"
-              onClick={onOutgoingVideoCall}
-              variant="affirmative"
-            >
-              {i18n('icu:joinOngoingCall')}
-            </AxoButton.Root>
+            <InAnotherCallTooltip inAnotherCall={inAnotherCall} i18n={i18n}>
+              <AxoButton.Root
+                size="md"
+                symbol="videocamera-fill"
+                discouraged={inAnotherCall}
+                onClick={onOutgoingVideoCall}
+                variant="strong-affirmative"
+              >
+                {i18n('icu:joinOngoingCall')}
+              </AxoButton.Root>
+            </InAnotherCallTooltip>
           </div>
         </>
-      );
-      return inAnotherCall ? (
-        <InAnotherCallTooltip i18n={i18n}>{joinButton}</InAnotherCallTooltip>
-      ) : (
-        joinButton
       );
     default:
       throw missingCaseError(outgoingCallButtonStyle);
@@ -1096,42 +1095,44 @@ function LeaveGroupConfirmationDialog({
   onClose: () => void;
 }) {
   return (
-    <ConfirmationDialog
-      dialogName="ConversationHeader.leaveGroup"
+    <AxoConfirmDialog.Root
+      open
+      onOpenChange={onClose}
       title={i18n('icu:ConversationHeader__LeaveGroupConfirmation__title')}
-      actions={[
-        {
-          disabled: cannotLeaveBecauseYouAreLastAdmin,
-          action: onLeaveGroup,
-          style: 'negative',
-          text: i18n(
-            'icu:ConversationHeader__LeaveGroupConfirmation__confirmButton'
-          ),
-        },
-      ]}
-      i18n={i18n}
-      onClose={onClose}
+      description={i18n(
+        'icu:ConversationHeader__LeaveGroupConfirmation__description'
+      )}
     >
-      {i18n('icu:ConversationHeader__LeaveGroupConfirmation__description')}
-    </ConfirmationDialog>
+      <AxoConfirmDialog.Cancel />
+      <AxoConfirmDialog.Action
+        variant="strong-destructive"
+        onClick={onLeaveGroup}
+        disabled={cannotLeaveBecauseYouAreLastAdmin}
+      >
+        {i18n('icu:ConversationHeader__LeaveGroupConfirmation__confirmButton')}
+      </AxoConfirmDialog.Action>
+    </AxoConfirmDialog.Root>
   );
 }
 
-function CannotLeaveGroupBecauseYouAreLastAdminAlert({
-  i18n,
-  onClose,
-}: {
+/** @testexport */
+export function CannotLeaveGroupBecauseYouAreLastAdminAlert(props: {
   i18n: LocalizerType;
   onClose: () => void;
-}) {
+}): ReactNode {
+  const { i18n } = props;
   return (
-    <Alert
-      i18n={i18n}
-      body={i18n(
+    <AxoConfirmDialog.Root
+      open
+      onOpenChange={props.onClose}
+      // @ts-expect-error ConfirmationDialog migration: Needs title
+      title={null}
+      description={i18n(
         'icu:ConversationHeader__CannotLeaveGroupBecauseYouAreLastAdminAlert__description'
       )}
-      onClose={onClose}
-    />
+    >
+      <AxoConfirmDialog.Cancel>{i18n('icu:ok')}</AxoConfirmDialog.Cancel>
+    </AxoConfirmDialog.Root>
   );
 }
 

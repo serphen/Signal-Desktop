@@ -79,8 +79,8 @@ describe('stickers', function (this: Mocha.Suite) {
         .locator(`a:has-text("${STICKER_PACKS[0].id.toString('hex')}")`)
         .click();
       await window
-        .getByTestId('StickerPreviewModal')
-        .getByRole('button', { name: 'Install' })
+        .getByRole('dialog', { name: 'Sticker Pack' })
+        .getByRole('button', { name: 'Add Stickers' })
         .click();
 
       debug('waiting for sync message');
@@ -118,17 +118,21 @@ describe('stickers', function (this: Mocha.Suite) {
       debug('uninstalling first sticker pack via UI');
       const state = await phone.expectStorageState('initial state');
 
-      await conversationView
-        .locator(`a:has-text("${STICKER_PACKS[0].id.toString('hex')}")`)
-        .click();
+      // Dialog remains open after install
       await window
-        .getByTestId('StickerPreviewModal')
-        .getByRole('button', { name: 'Uninstall' })
+        .getByRole('dialog', { name: 'Sticker Pack' })
+        .getByRole('button', { name: 'Remove' })
         .click();
 
       // Confirm
       await window
-        .locator('.module-Button--destructive >> "Uninstall"')
+        .getByRole('alertdialog')
+        .filter({
+          has: window.getByText(
+            'You may not be able to re-install this sticker pack if you no longer have the source message.'
+          ),
+        })
+        .getByRole('button', { name: 'Uninstall' })
         .click();
 
       debug('waiting for sync message');
@@ -186,8 +190,8 @@ describe('stickers', function (this: Mocha.Suite) {
       '[data-testid=StickerManager]'
     );
 
-    debug('switching to Installed tab');
-    await stickerManager.locator('.Tabs__tab >> "Installed"').click();
+    debug('switching to My Stickers tab');
+    await window.getByText('My Stickers').click();
 
     {
       debug('installing first sticker pack via storage service');
@@ -249,7 +253,7 @@ describe('stickers', function (this: Mocha.Suite) {
       );
       assert.strictEqual(
         stickerPack.record.stickerPack.position,
-        12,
+        11,
         'Wrong sticker pack position'
       );
     }

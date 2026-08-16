@@ -3,8 +3,8 @@
 
 import classNames from 'classnames';
 import lodash from 'lodash';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode, ComponentProps, JSX, MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Manager, Popper, Reference } from 'react-popper';
 import type { PreventOverflowModifier } from '@popperjs/core/lib/modifiers/preventOverflow.js';
@@ -32,11 +32,12 @@ import type {
 import { useScrollerLock } from '../../hooks/useScrollLock.dom.tsx';
 import { MessageContextMenu } from './MessageContextMenu.dom.tsx';
 import { ForwardMessagesModalType } from '../ForwardMessagesModal.dom.tsx';
-import { useGroupedAndOrderedReactions } from '../../util/groupAndOrderReactions.dom.ts';
+import { useGroupedAndOrderedReactions } from '../../util/groupAndOrderReactions.std.ts';
 import { isNotNil } from '../../util/isNotNil.std.ts';
 import type { AxoMenuBuilder } from '../../axo/AxoMenuBuilder.dom.tsx';
 import { AxoContextMenu } from '../../axo/AxoContextMenu.dom.tsx';
 import { useDocumentKeyDown } from '../../hooks/useDocumentKeyDown.dom.ts';
+import type { Emoji } from '../../axo/emoji.std.ts';
 
 const { useAxoContextMenuOutsideKeyboardTrigger } = AxoContextMenu;
 
@@ -53,7 +54,7 @@ export type PropsData = {
   canReact: boolean;
   canReply: boolean;
   canPinMessage: boolean;
-  selectedReaction?: string;
+  selectedReaction?: Emoji.Variant;
   isTargeted?: boolean;
   isSignalConversation: boolean;
 } & Omit<MessagePropsData, 'renderingContext' | 'menu'>;
@@ -66,7 +67,7 @@ export type PropsActions = {
   endPoll: (id: string) => void;
   reactToMessage: (
     id: string,
-    { emoji, remove }: { emoji: string; remove: boolean }
+    { emoji, remove }: { emoji: Emoji.Variant; remove: boolean }
   ) => void;
   retryMessageSend: (id: string) => void;
   sendPollVote: (params: {
@@ -94,14 +95,14 @@ export type Props = PropsData &
   PropsActions &
   Omit<PropsHousekeeping, 'isAttachmentPending'> & {
     renderReactionPicker: (
-      props: React.ComponentProps<typeof SmartReactionPicker>
-    ) => React.JSX.Element;
+      props: ComponentProps<typeof SmartReactionPicker>
+    ) => JSX.Element;
   };
 
 /**
  * Message with menu/context-menu (as necessary for rendering in the timeline)
  */
-export function TimelineMessage(props: Props): React.JSX.Element {
+export function TimelineMessage(props: Props): JSX.Element {
   const {
     attachments,
     canDownload,
@@ -242,7 +243,7 @@ export function TimelineMessage(props: Props): React.JSX.Element {
   });
 
   const openGenericAttachment = useCallback(
-    (event?: React.MouseEvent): void => {
+    (event?: MouseEvent): void => {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -285,7 +286,9 @@ export function TimelineMessage(props: Props): React.JSX.Element {
   );
 
   const shouldShowAdditional =
-    doesMessageBodyOverflow(text || '') || !isWindowWidthNotNarrow || isShiftHeld;
+    doesMessageBodyOverflow(text || '') ||
+    !isWindowWidthNotNarrow ||
+    isShiftHeld;
 
   const canSelect = interactivity === MessageInteractivity.Normal;
 
@@ -326,22 +329,19 @@ export function TimelineMessage(props: Props): React.JSX.Element {
 
   const groupedReactions = useGroupedAndOrderedReactions(
     props.reactions,
-    'variantKey'
+    'variant'
   );
 
   const messageEmojis = useMemo(() => {
     return groupedReactions
       .map(groupedReaction => {
-        return groupedReaction?.[0]?.variantKey;
+        return groupedReaction?.[0]?.variant;
       })
       .filter(isNotNil);
   }, [groupedReactions]);
 
   const renderMessageContextMenu = useCallback(
-    (
-      renderer: AxoMenuBuilder.Renderer,
-      children: ReactNode
-    ): React.JSX.Element => {
+    (renderer: AxoMenuBuilder.Renderer, children: ReactNode): JSX.Element => {
       return (
         <MessageContextMenu
           i18n={i18n}
@@ -448,9 +448,7 @@ export function TimelineMessage(props: Props): React.JSX.Element {
               : null
           }
           onEdit={
-            canEditMessage
-              ? () => setMessageToEdit(conversationId, id)
-              : null
+            canEditMessage ? () => setMessageToEdit(conversationId, id) : null
           }
           onCopy={canCopy ? () => copyMessageText(id) : null}
           onDelete={() => {
@@ -568,8 +566,6 @@ function MessageMenu({
   onDelete,
   renderMessageContextMenu,
 }: MessageMenuProps) {
-  // This a menu meant for mouse use only
-
   return (
     <div
       className={classNames(
@@ -589,11 +585,11 @@ function MessageMenu({
                   : undefined;
 
                 return (
-                  // This a menu meant for mouse use only
-                  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events
+                  // FIXME: Menus should be keyboard accessible
+                  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
                   <div
                     ref={maybePopperRef}
-                    onClick={(event: React.MouseEvent) => {
+                    onClick={(event: MouseEvent) => {
                       event.stopPropagation();
                       event.preventDefault();
 
@@ -614,8 +610,8 @@ function MessageMenu({
           )}
 
           {onDownload && (
-            // This a menu meant for mouse use only
-            // oxlint-disable-next-line jsx-a11y/click-events-have-key-events
+            // FIXME: Menus should be keyboard accessible
+            // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
             <div
               onClick={onDownload}
               role="button"
@@ -633,16 +629,15 @@ function MessageMenu({
           )}
 
           {onReplyToMessage && (
-            // This a menu meant for mouse use only
-            // oxlint-disable-next-line jsx-a11y/click-events-have-key-events
+            // FIXME: Menus should be keyboard accessible
+            // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
             <div
-              onClick={(event: React.MouseEvent) => {
+              onClick={(event: MouseEvent) => {
                 event.stopPropagation();
                 event.preventDefault();
 
                 onReplyToMessage();
               }}
-              // This a menu meant for mouse use only
               role="button"
               aria-label={i18n('icu:replyToMessage')}
               title="Reply"

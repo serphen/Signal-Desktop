@@ -1,11 +1,10 @@
 // Copyright 2021 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import type { ReactNode } from 'react';
-import React, { useEffect, useState, useCallback } from 'react';
+import type { ReactNode, JSX } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import classNames from 'classnames';
 
-import { Button, ButtonIconType, ButtonVariant } from '../../Button.dom.tsx';
 import type {
   ConversationType,
   PushPanelForConversationActionType,
@@ -15,7 +14,6 @@ import type {
 import type { PreferredBadgeSelectorType } from '../../../state/selectors/badges.preload.ts';
 import type { SmartChooseGroupMembersModalPropsType } from '../../../state/smart/ChooseGroupMembersModal.preload.tsx';
 import type { SmartConfirmAdditionsModalPropsType } from '../../../state/smart/ConfirmAdditionsModal.dom.tsx';
-import { assertDev } from '../../../util/assert.std.ts';
 import { getMutedUntilText } from '../../../util/getMutedUntilText.std.ts';
 
 import type { LocalizerType, ThemeType } from '../../../types/Util.std.ts';
@@ -44,7 +42,6 @@ import { EditConversationAttributesModal } from './EditConversationAttributesMod
 import { RequestState } from './util.std.ts';
 import { getCustomColorStyle } from '../../../util/getCustomColorStyle.dom.ts';
 import { openLinkInWebBrowser } from '../../../util/openLinkInWebBrowser.dom.ts';
-import { ConfirmationDialog } from '../../ConfirmationDialog.dom.tsx';
 import { ConversationNotificationsModal } from './ConversationNotificationsModal.dom.tsx';
 import type {
   AvatarDataType,
@@ -60,14 +57,15 @@ import { NavTab } from '../../../types/Nav.std.ts';
 import { ContextMenu } from '../../ContextMenu.dom.tsx';
 import { canHaveNicknameAndNote } from '../../../util/nicknames.dom.ts';
 import { CallHistoryGroupPanelSection } from './CallHistoryGroupPanelSection.dom.tsx';
-import {
-  InAnotherCallTooltip,
-  getTooltipContent,
-} from '../InAnotherCallTooltip.dom.tsx';
+import { InAnotherCallTooltip } from '../InAnotherCallTooltip.dom.tsx';
 import type { ContactModalStateType } from '../../../types/globalModals.std.ts';
 import type { ShowToastAction } from '../../../state/ducks/toast.preload.ts';
 import { ToastType } from '../../../types/Toast.dom.tsx';
 import type { ContactNameColorType } from '../../../types/Colors.std.ts';
+import { AxoConfirmDialog } from '../../../axo/AxoConfirmDialog.dom.tsx';
+import { canConversationOnlyBeMutedAlways } from '../../../conversations/canConversationOnlyBeMutedAlways.dom.ts';
+import { CONTACT_SUPPORT_URL } from '../../../util/contactSupport.dom.tsx';
+import { AxoStackedButton } from '../../../axo/AxoStackedButton.dom.tsx';
 
 enum ModalState {
   AddingGroupMembers,
@@ -112,10 +110,10 @@ export type StateProps = {
   userAvatarData: ReadonlyArray<AvatarDataType>;
   renderChooseGroupMembersModal: (
     props: SmartChooseGroupMembersModalPropsType
-  ) => React.JSX.Element;
+  ) => JSX.Element;
   renderConfirmAdditionsModal: (
     props: SmartConfirmAdditionsModalPropsType
-  ) => React.JSX.Element;
+  ) => JSX.Element;
 };
 
 type ActionProps = {
@@ -146,7 +144,7 @@ type ActionProps = {
   saveAvatarToDisk: SaveAvatarToDiskActionType;
   searchInConversation: (id: string) => unknown;
   setDisappearingMessages: (id: string, seconds: DurationInSeconds) => void;
-  setMuteExpiration: (id: string, muteExpiresAt: undefined | number) => unknown;
+  setMuteDuration: (id: string, muteDuration: undefined | number) => unknown;
   showContactModal: (payload: ContactModalStateType) => void;
   showConversation: ShowConversationType;
   terminateGroup: (conversationId: string) => void;
@@ -221,7 +219,7 @@ export function ConversationDetails({
   searchInConversation,
   selectedNavTab,
   setDisappearingMessages,
-  setMuteExpiration,
+  setMuteDuration,
   showContactModal,
   showConversation,
   showToast,
@@ -233,7 +231,7 @@ export function ConversationDetails({
   toggleAddUserToAnotherGroupModal,
   updateGroupAttributes,
   userAvatarData,
-}: Props): React.JSX.Element {
+}: Props): JSX.Element {
   const [modalState, setModalState] = useState<ModalState>(
     ModalState.NothingOpen
   );
@@ -259,6 +257,8 @@ export function ConversationDetails({
   const isGroupTerminated = Boolean(conversation.terminated);
   const canTerminateGroup =
     isTerminateGroupEnabled && !isGroupTerminated && isAdmin;
+
+  const areWeMember = memberships.some(({ member }) => member.isMe);
 
   const onCloseModal = useCallback(() => {
     setModalState(ModalState.NothingOpen);
@@ -319,12 +319,12 @@ export function ConversationDetails({
           renderChooseGroupMembersModal={renderChooseGroupMembersModal}
           renderConfirmAdditionsModal={renderConfirmAdditionsModal}
           clearRequestError={() => {
+            // This is called on close of the dialog, both on 'add member' and 'cancel'
             setAddGroupMembersRequestState(oldRequestState => {
-              assertDev(
-                oldRequestState !== RequestState.Active,
-                'Should not be clearing an active request state'
-              );
-              return RequestState.Inactive;
+              if (oldRequestState === RequestState.InactiveWithError) {
+                return RequestState.Inactive;
+              }
+              return oldRequestState;
             });
           }}
           conversationIdsAlreadyInGroup={
@@ -354,26 +354,24 @@ export function ConversationDetails({
       break;
     case ModalState.ConfirmDeleteNicknameAndNote:
       modalNode = (
-        <ConfirmationDialog
-          dialogName="ConversationDetails.ConfirmDeleteNicknameAndNote"
-          actions={[
-            {
-              action: onDeleteNicknameAndNote,
-              style: 'negative',
-              text: i18n('icu:delete'),
-            },
-          ]}
-          hasXButton
-          i18n={i18n}
+        <AxoConfirmDialog.Root
+          open
+          onOpenChange={onCloseModal}
           title={i18n(
             'icu:ConversationDetails__ConfirmDeleteNicknameAndNote__Title'
           )}
-          onClose={onCloseModal}
-        >
-          {i18n(
+          description={i18n(
             'icu:ConversationDetails__ConfirmDeleteNicknameAndNote__Description'
           )}
-        </ConfirmationDialog>
+        >
+          <AxoConfirmDialog.Cancel />
+          <AxoConfirmDialog.Action
+            variant="strong-destructive"
+            onClick={onDeleteNicknameAndNote}
+          >
+            {i18n('icu:delete')}
+          </AxoConfirmDialog.Action>
+        </AxoConfirmDialog.Root>
       );
       break;
     case ModalState.MuteNotifications:
@@ -383,28 +381,29 @@ export function ConversationDetails({
           id={conversation.id}
           muteExpiresAt={conversation.muteExpiresAt}
           onClose={onCloseModal}
-          setMuteExpiration={setMuteExpiration}
+          setMuteDuration={setMuteDuration}
         />
       );
       break;
     case ModalState.UnmuteNotifications:
       modalNode = (
-        <ConfirmationDialog
-          dialogName="ConversationDetails.unmuteNotifications"
-          actions={[
-            {
-              action: () => setMuteExpiration(conversation.id, 0),
-              style: 'affirmative',
-              text: i18n('icu:unmute'),
-            },
-          ]}
-          hasXButton
-          i18n={i18n}
+        <AxoConfirmDialog.Root
+          open
+          onOpenChange={onCloseModal}
           title={i18n('icu:ConversationDetails__unmute--title')}
-          onClose={onCloseModal}
+          description={getMutedUntilText(
+            Number(conversation.muteExpiresAt),
+            i18n
+          )}
         >
-          {getMutedUntilText(Number(conversation.muteExpiresAt), i18n)}
-        </ConfirmationDialog>
+          <AxoConfirmDialog.Cancel />
+          <AxoConfirmDialog.Action
+            variant="strong-primary"
+            onClick={() => setMuteDuration(conversation.id, 0)}
+          >
+            {i18n('icu:unmute')}
+          </AxoConfirmDialog.Action>
+        </AxoConfirmDialog.Root>
       );
       break;
 
@@ -441,77 +440,79 @@ export function ConversationDetails({
       />
 
       <div className="ConversationDetails__header-buttons">
-        {selectedNavTab === NavTab.Calls && (
-          <Button
-            icon={ButtonIconType.message}
-            onClick={() => {
-              showConversation({
-                conversationId: conversation?.id,
-                switchToAssociatedView: true,
-              });
-            }}
-            variant={ButtonVariant.Details}
-          >
-            {i18n('icu:ConversationDetails__HeaderButton--Message')}
-          </Button>
-        )}
-        {!conversation.isMe && !isSignalConversation && (
-          <>
-            {!conversation.terminated && (
-              <ConversationDetailsCallButton
-                hasActiveCall={hasActiveCall}
-                i18n={i18n}
-                onClick={() =>
-                  onOutgoingVideoCallInConversation(conversation.id)
-                }
-                type="video"
-              />
-            )}
-            {!isGroup && (
-              <ConversationDetailsCallButton
-                hasActiveCall={hasActiveCall}
-                i18n={i18n}
-                onClick={() =>
-                  onOutgoingAudioCallInConversation(conversation.id)
-                }
-                type="audio"
-              />
-            )}
-          </>
-        )}
-        <Button
-          icon={isMuted ? ButtonIconType.muted : ButtonIconType.unmuted}
-          onClick={() => {
-            if (isSignalConversation) {
-              if (isMuted) {
-                setMuteExpiration(conversation.id, 0);
-              } else {
-                setMuteExpiration(conversation.id, Number.MAX_SAFE_INTEGER);
-              }
-              return;
-            }
+        <AxoStackedButton.Row spacing="md">
+          {selectedNavTab === NavTab.Calls && (
+            <AxoStackedButton.Root
+              symbol="message"
+              label={i18n('icu:ConversationDetails__HeaderButton--Message')}
+              onClick={() => {
+                showConversation({
+                  conversationId: conversation?.id,
+                  switchToAssociatedView: true,
+                });
+              }}
+            />
+          )}
+          {!conversation.isMe && !isSignalConversation && (
+            <>
+              {!conversation.terminated && (
+                <InAnotherCallTooltip i18n={i18n} inAnotherCall={hasActiveCall}>
+                  <AxoStackedButton.Root
+                    symbol="videocamera"
+                    label={i18n('icu:video')}
+                    discouraged={hasActiveCall}
+                    onClick={() =>
+                      onOutgoingVideoCallInConversation(conversation.id)
+                    }
+                  />
+                </InAnotherCallTooltip>
+              )}
+              {!isGroup && (
+                <InAnotherCallTooltip i18n={i18n} inAnotherCall={hasActiveCall}>
+                  <AxoStackedButton.Root
+                    symbol="phone"
+                    label={i18n('icu:audio')}
+                    discouraged={hasActiveCall}
+                    onClick={() =>
+                      onOutgoingAudioCallInConversation(conversation.id)
+                    }
+                  />
+                </InAnotherCallTooltip>
+              )}
+            </>
+          )}
 
-            if (isMuted) {
-              setModalState(ModalState.UnmuteNotifications);
-            } else {
-              setModalState(ModalState.MuteNotifications);
-            }
-          }}
-          variant={ButtonVariant.Details}
-        >
-          {isMuted ? i18n('icu:unmute') : i18n('icu:mute')}
-        </Button>
-        {selectedNavTab !== NavTab.Calls && (
-          <Button
-            icon={ButtonIconType.search}
+          <AxoStackedButton.Root
+            symbol={isMuted ? 'bell-slash' : 'bell'}
+            label={isMuted ? i18n('icu:unmute') : i18n('icu:mute')}
             onClick={() => {
-              searchInConversation(conversation.id);
+              if (canConversationOnlyBeMutedAlways(conversation)) {
+                if (isMuted) {
+                  setMuteDuration(conversation.id, 0);
+                } else {
+                  setMuteDuration(conversation.id, Number.MAX_SAFE_INTEGER);
+                }
+                return;
+              }
+
+              if (isMuted) {
+                setModalState(ModalState.UnmuteNotifications);
+              } else {
+                setModalState(ModalState.MuteNotifications);
+              }
             }}
-            variant={ButtonVariant.Details}
-          >
-            {i18n('icu:search')}
-          </Button>
-        )}
+          />
+
+          {selectedNavTab !== NavTab.Calls && (
+            <AxoStackedButton.Root
+              symbol="search"
+              label={i18n('icu:search')}
+              onClick={() => {
+                searchInConversation(conversation.id);
+              }}
+            />
+          )}
+        </AxoStackedButton.Row>
       </div>
 
       {isSignalConversation && (
@@ -559,9 +560,7 @@ export function ConversationDetails({
               }
               label={i18n('icu:contactUs')}
               onClick={() => {
-                openLinkInWebBrowser(
-                  'https://support.signal.org/hc/requests/new?desktop'
-                );
+                openLinkInWebBrowser(CONTACT_SUPPORT_URL);
               }}
             />
             <PanelRow
@@ -759,6 +758,8 @@ export function ConversationDetails({
         <ConversationDetailsMembershipList
           canAddLabel={canAddLabel}
           canAddNewMembers={canAddNewMembers}
+          canInviteViaGroupLink={hasGroupLink}
+          groupLink={conversation.groupLink ?? null}
           conversationId={conversation.id}
           getPreferredBadge={getPreferredBadge}
           i18n={i18n}
@@ -798,7 +799,7 @@ export function ConversationDetails({
               right={hasGroupLink ? i18n('icu:on') : i18n('icu:off')}
             />
           ) : null}
-          {isEditMemberLabelEnabled ? (
+          {isEditMemberLabelEnabled && areWeMember ? (
             <PanelRow
               icon={
                 <ConversationDetailsIcon
@@ -907,35 +908,4 @@ export function ConversationDetails({
       {modalNode}
     </div>
   );
-}
-
-function ConversationDetailsCallButton({
-  hasActiveCall,
-  i18n,
-  onClick,
-  type,
-}: Readonly<{
-  hasActiveCall: boolean;
-  i18n: LocalizerType;
-  onClick: () => unknown;
-  type: 'audio' | 'video';
-}>) {
-  const tooltipContent = hasActiveCall ? getTooltipContent(i18n) : undefined;
-  const button = (
-    <Button
-      icon={ButtonIconType[type]}
-      onClick={onClick}
-      variant={ButtonVariant.Details}
-      discouraged={hasActiveCall}
-      aria-label={tooltipContent}
-    >
-      {type === 'audio' ? i18n('icu:audio') : i18n('icu:video')}
-    </Button>
-  );
-
-  if (hasActiveCall) {
-    return <InAnotherCallTooltip i18n={i18n}>{button}</InAnotherCallTooltip>;
-  }
-
-  return button;
 }
