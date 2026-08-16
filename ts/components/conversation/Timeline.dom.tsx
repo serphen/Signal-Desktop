@@ -133,6 +133,7 @@ export type PropsActionsType = {
     messageId: string | undefined
   ) => void;
   setIsNearBottom: (conversationId: string, isNearBottom: boolean) => void;
+  clearUnreadMetrics: (conversationId: string) => void;
   scrollToOldestUnreadMention: (conversationId: string) => unknown;
 };
 
@@ -349,6 +350,7 @@ export class Timeline extends Component<PropsType, StateType, SnapshotType> {
       loadOlderMessages,
       messageLoadingState,
       setIsNearBottom,
+      clearUnreadMetrics,
     } = this.props;
 
     // We re-initialize the `IntersectionObserver`. We don't want stale references to old
@@ -429,6 +431,10 @@ export class Timeline extends Component<PropsType, StateType, SnapshotType> {
         });
 
         setIsNearBottom(id, newIsNearBottom);
+
+        if (newIsNearBottom) {
+          clearUnreadMetrics(id);
+        }
 
         if (newestBottomVisibleMessageId) {
           this.#markNewestBottomVisibleMessageRead(

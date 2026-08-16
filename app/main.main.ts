@@ -3,6 +3,7 @@
 
 import { join, normalize, extname, dirname, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { execFile } from 'node:child_process';
 import * as os from 'node:os';
 import fsExtra from 'fs-extra';
 import { randomBytes } from 'node:crypto';
@@ -509,6 +510,53 @@ function prepareUrl(
   return setUrlSearchParams(url, { forCalling, forCamera, sourceName }).href;
 }
 
+// Midnight: Browser chooser for opening external links
+const KNOWN_BROWSERS = [
+  { name: 'Safari', app: 'Safari' },
+  { name: 'Chrome', app: 'Google Chrome' },
+  { name: 'Firefox', app: 'Firefox' },
+  { name: 'Edge', app: 'Microsoft Edge' },
+  { name: 'Brave', app: 'Brave Browser' },
+  { name: 'Arc', app: 'Arc' },
+  { name: 'Opera', app: 'Opera' },
+  { name: 'Vivaldi', app: 'Vivaldi' },
+];
+
+let installedBrowsers: Array<{ name: string; app: string }> | null = null;
+
+async function getInstalledBrowsers(): Promise<
+  Array<{ name: string; app: string }>
+> {
+  if (installedBrowsers != null) {
+    return installedBrowsers;
+  }
+
+  const results: Array<{ name: string; app: string }> = [];
+  for (const browser of KNOWN_BROWSERS) {
+    try {
+      await fsExtra.access(`/Applications/${browser.app}.app`);
+      results.push(browser);
+    } catch {
+      // not installed
+    }
+  }
+
+  installedBrowsers = results;
+  return results;
+}
+
+async function openUrlInBrowser(url: string, appName: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile('open', ['-a', appName, url], error => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 async function handleUrl(rawTarget: string) {
   const parsedUrl = maybeParseUrl(rawTarget);
   if (!parsedUrl) {
@@ -528,7 +576,37 @@ async function handleUrl(rawTarget: string) {
 
   if ((protocol === 'http:' || protocol === 'https:') && !isDevServer) {
     try {
-      await shell.openExternal(rawTarget);
+      // Midnight: Show browser chooser on macOS
+      if (OS.isMacOS()) {
+        const browsers = await getInstalledBrowsers();
+
+        if (browsers.length <= 1) {
+          // Only one or no browsers found, use default
+          await shell.openExternal(rawTarget);
+          return;
+        }
+
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        const options = {
+          type: 'question' as const,
+          title: 'Open link in...',
+          message: rawTarget.length > 80
+            ? `${rawTarget.substring(0, 80)}...`
+            : rawTarget,
+          buttons: [...browsers.map(b => b.name), 'Cancel'],
+          defaultId: 0,
+          cancelId: browsers.length,
+        };
+        const { response } = focusedWindow
+          ? await dialog.showMessageBox(focusedWindow, options)
+          : await dialog.showMessageBox(options);
+
+        if (response < browsers.length) {
+          await openUrlInBrowser(rawTarget, browsers[response].app);
+        }
+      } else {
+        await shell.openExternal(rawTarget);
+      }
     } catch (error) {
       log.error(`Failed to open url: ${Errors.toLogFormat(error)}`);
     }

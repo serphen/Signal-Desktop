@@ -19,6 +19,7 @@ export type Props = Readonly<{
 const TabValue = {
   All: 'all',
   MyStickers: 'my-stickers',
+  Risibank: 'risibank',
 } as const satisfies Record<string, StickerManagerTabType>;
 
 export function StickerManagerHeader({
@@ -30,6 +31,7 @@ export function StickerManagerHeader({
     (value: string | null) => {
       switch (value) {
         case 'my-stickers':
+        case 'risibank':
           setTab(value);
           break;
         case null:
@@ -66,6 +68,11 @@ export function StickerManagerHeader({
               {i18n('icu:stickers--StickerManagerHeader--MyStickers')}
             </ExperimentalAxoSegmentedControl.ItemText>
           </ExperimentalAxoSegmentedControl.Item>
+          <ExperimentalAxoSegmentedControl.Item value={TabValue.Risibank}>
+            <ExperimentalAxoSegmentedControl.ItemText>
+              Risibank
+            </ExperimentalAxoSegmentedControl.ItemText>
+          </ExperimentalAxoSegmentedControl.Item>
         </ExperimentalAxoSegmentedControl.Root>
       </div>
 
@@ -87,6 +94,9 @@ export function StickerManagerHeader({
               <AxoSelect.ItemText>
                 {i18n('icu:stickers--StickerManagerHeader--MyStickers')}
               </AxoSelect.ItemText>
+            </AxoSelect.Item>
+            <AxoSelect.Item value={TabValue.Risibank}>
+              <AxoSelect.ItemText>Risibank</AxoSelect.ItemText>
             </AxoSelect.Item>
           </AxoSelect.Content>
         </AxoSelect.Root>

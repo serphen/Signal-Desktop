@@ -997,6 +997,10 @@ type ReadableInterface = {
   getLastConversationMessage: (options: {
     conversationId: string;
   }) => MessageType | undefined;
+  getLastIncomingActivityTimestamp: (options: {
+    conversationId: string;
+    ourConversationId: string;
+  }) => number | null;
   getAllCallHistory: () => ReadonlyArray<CallHistoryDetails>;
   getCallHistoryUnreadCallConversationIds: () => ReadonlyArray<string>;
   getCallHistoryUnreadCount: () => number;

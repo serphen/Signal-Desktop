@@ -192,6 +192,7 @@ export const useSearchActions = (): BoundActionCreatorsMapObject<
 > => useBoundActions(actions);
 
 function startSearch(): StartSearchActionType {
+  window.dispatchEvent(new CustomEvent('sidebar-expand'));
   return {
     type: 'SEARCH_START',
     payload: null,
@@ -248,6 +249,7 @@ function endConversationSearch(): ThunkAction<
 function searchInConversation(
   searchConversationId: string
 ): SearchInConversationActionType {
+  window.dispatchEvent(new CustomEvent('sidebar-expand'));
   return {
     type: 'SEARCH_IN_CONVERSATION',
     payload: { searchConversationId },

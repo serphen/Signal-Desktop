@@ -12,5 +12,5 @@ export enum WidthBreakpoint {
 }
 
 export function getNavSidebarWidthBreakpoint(width: number): WidthBreakpoint {
-  return width >= 150 ? WidthBreakpoint.Wide : WidthBreakpoint.Narrow;
+  return WidthBreakpoint.Wide; // Midnight: never switch to compact icon-only mode
 }

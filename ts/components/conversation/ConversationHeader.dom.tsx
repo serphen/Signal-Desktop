@@ -56,6 +56,7 @@ import { OfficialChatInlineBadge } from './OfficialChatInlineBadge.dom.tsx';
 import { AxoIconButton } from '../../axo/AxoIconButton.dom.tsx';
 import { AxoButton } from '../../axo/AxoButton.dom.tsx';
 import { AxoConfirmDialog } from '../../axo/AxoConfirmDialog.dom.tsx';
+import { formatDateTimeShort } from '../../util/formatTimestamp.dom.ts';
 
 function HeaderInfoTitle({
   name,
@@ -154,6 +155,9 @@ export type PropsDataType = {
   renderMiniPlayer: RenderMiniPlayer;
 
   renderPinnedMessagesBar: RenderPinnedMessagesBar;
+
+  // Midnight: last incoming activity timestamp
+  lastIncomingActivityAt?: number | null;
 };
 
 export type PropsActionsType = {
@@ -242,6 +246,8 @@ export const ConversationHeader = memo(function ConversationHeader({
   renderMiniPlayer,
 
   renderPinnedMessagesBar,
+
+  lastIncomingActivityAt,
 }: PropsType): JSX.Element | null {
   // Comes from a third-party dependency
   const headerRef = useRef<HTMLDivElement>(null);
@@ -343,6 +349,7 @@ export const ConversationHeader = memo(function ConversationHeader({
               onViewUserStories={onViewUserStories}
               onViewConversationDetails={onViewConversationDetails}
               isSignalConversation={isSignalConversation ?? false}
+              lastIncomingActivityAt={lastIncomingActivityAt}
             />
             <div className={tw(`flex flex-row gap-1 px-4 @min-[500px]:gap-3`)}>
               {!isSmsOnlyOrUnregistered &&
@@ -492,6 +499,7 @@ function HeaderContent({
   isSignalConversation,
   onViewUserStories,
   onViewConversationDetails,
+  lastIncomingActivityAt,
 }: {
   conversation: MinimalConversation;
   badge: BadgeType | null;
@@ -502,6 +510,7 @@ function HeaderContent({
   isSignalConversation: boolean;
   onViewUserStories: () => void;
   onViewConversationDetails: () => void;
+  lastIncomingActivityAt?: number | null;
 }) {
   let onClick: undefined | (() => void);
   const { type } = conversation;
@@ -560,7 +569,8 @@ function HeaderContent({
       />
       {(isOfficialChat ||
         conversation.expireTimer != null ||
-        conversation.isVerified) && (
+        conversation.isVerified ||
+        (lastIncomingActivityAt != null && !conversation.isMe)) && (
         <div className="module-ConversationHeader__header__info__subtitle">
           {isOfficialChat ? (
             <div>
@@ -578,6 +588,11 @@ function HeaderContent({
           {!isOfficialChat && conversation.isVerified && (
             <div className="module-ConversationHeader__header__info__subtitle__verified">
               {i18n('icu:verified')}
+            </div>
+          )}
+          {lastIncomingActivityAt != null && !conversation.isMe && (
+            <div className="module-ConversationHeader__header__info__subtitle__last-active">
+              Last active: {formatDateTimeShort(i18n, lastIncomingActivityAt)}
             </div>
           )}
         </div>

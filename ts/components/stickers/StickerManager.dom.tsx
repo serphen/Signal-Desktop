@@ -17,6 +17,7 @@ import {
   type StickerManagerPackRowControlType,
 } from './StickerManagerPackRow.dom.tsx';
 import { StickerPreviewModal } from './StickerPreviewModal.dom.tsx';
+import { RisibankCollectionBrowser } from './RisibankCollectionBrowser.dom.tsx';
 import type { LocalizerType } from '../../types/Util.std.ts';
 import type { StickerPackType } from '../../state/ducks/stickers.preload.ts';
 import type { ShowToastAction } from '../../state/ducks/toast.preload.ts';
@@ -276,6 +277,12 @@ export const StickerManager = memo(function StickerManagerInner({
         ) : (
           <MyStickersEmpty i18n={i18n} setTabAll={setTabAll} />
         ))}
+      {tab === 'risibank' && (
+        <RisibankCollectionBrowser
+          i18n={i18n}
+          installedPacks={installedPacks}
+        />
+      )}
     </div>
   );
 });

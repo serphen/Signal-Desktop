@@ -89,11 +89,15 @@ export function LeftPaneSearchInput({
       inputRef.current?.focus();
     }
     // When user chooses to start a new search, we focus the field
+    // Use rAF to wait for sidebar expand animation to complete
     if (
       (isSearchingGlobally && !wasSearchingGlobally) ||
       startSearchCounter !== prevSearchCounter
     ) {
-      inputRef.current?.select();
+      setTimeout(() => {
+        inputRef.current?.select();
+        inputRef.current?.focus();
+      }, 50);
     }
   }, [
     prevSearchConversationId,
@@ -147,6 +151,9 @@ export function LeftPaneSearchInput({
             onEnterKeyDown(clearSearchQuery, showConversation);
             event.preventDefault();
             event.stopPropagation();
+          }
+          if (event.key === 'Escape') {
+            window.dispatchEvent(new CustomEvent('sidebar-collapse'));
           }
         }}
         onChange={event => {

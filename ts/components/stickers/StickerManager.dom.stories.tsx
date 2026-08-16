@@ -20,7 +20,7 @@ export default {
   title: 'Components/Stickers/StickerManager',
   argTypes: {
     tab: {
-      options: ['all', 'my-stickers'],
+      options: ['all', 'my-stickers', 'risibank'],
       control: { type: 'select' },
     },
   },

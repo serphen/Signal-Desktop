@@ -103,7 +103,7 @@ export type StickerPackPointerType = Readonly<{
   key: string;
 }>;
 
-export type StickerManagerTabType = 'all' | 'my-stickers';
+export type StickerManagerTabType = 'all' | 'my-stickers' | 'risibank';
 
 export const STICKERPACK_ID_BYTE_LEN = 16;
 export const STICKERPACK_KEY_BYTE_LEN = 32;

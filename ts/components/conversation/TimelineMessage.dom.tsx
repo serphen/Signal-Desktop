@@ -154,6 +154,23 @@ export function TimelineMessage(props: Props): JSX.Element {
     HTMLDivElement | undefined
   >(undefined);
 
+  // Track Shift key to expand all menu options on hover
+  const [isShiftHeld, setIsShiftHeld] = useState(false);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setIsShiftHeld(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setIsShiftHeld(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
   const isWindowWidthNotNarrow =
     containerWidthBreakpoint !== WidthBreakpoint.Narrow;
 
@@ -269,7 +286,7 @@ export function TimelineMessage(props: Props): JSX.Element {
   );
 
   const shouldShowAdditional =
-    doesMessageBodyOverflow(text || '') || !isWindowWidthNotNarrow;
+    doesMessageBodyOverflow(text || '') || !isWindowWidthNotNarrow || isShiftHeld;
 
   const canSelect = interactivity === MessageInteractivity.Normal;
 
@@ -414,10 +431,32 @@ export function TimelineMessage(props: Props): JSX.Element {
         <MessageMenu
           i18n={i18n}
           isWindowWidthNotNarrow={isWindowWidthNotNarrow}
+          isShiftHeld={isShiftHeld}
           direction={direction}
           onDownload={handleDownload}
           onReplyToMessage={canReply ? handleReplyToMessage : null}
           onReact={canReact ? handleReact : null}
+          onForward={
+            canForward
+              ? () =>
+                  toggleForwardMessagesModal({
+                    type: ForwardMessagesModalType.Forward,
+                    messageIds: [id],
+                  })
+              : null
+          }
+          onEdit={
+            canEditMessage
+              ? () => setMessageToEdit(conversationId, id)
+              : null
+          }
+          onCopy={canCopy ? () => copyMessageText(id) : null}
+          onDelete={() => {
+            toggleDeleteMessagesModal({
+              conversationId,
+              messageIds: [id],
+            });
+          }}
           renderMessageContextMenu={renderMessageContextMenu}
         />
         {reactionPickerRoot &&
@@ -453,9 +492,18 @@ export function TimelineMessage(props: Props): JSX.Element {
   }, [
     i18n,
     isWindowWidthNotNarrow,
+    isShiftHeld,
     direction,
     canReply,
     canReact,
+    canCopy,
+    canEditMessage,
+    canForward,
+    conversationId,
+    copyMessageText,
+    setMessageToEdit,
+    toggleDeleteMessagesModal,
+    toggleForwardMessagesModal,
     handleDownload,
     handleReplyToMessage,
     handleReact,
@@ -490,9 +538,14 @@ export function TimelineMessage(props: Props): JSX.Element {
 type MessageMenuProps = {
   i18n: LocalizerType;
   isWindowWidthNotNarrow: boolean;
+  isShiftHeld: boolean;
   onDownload: (() => void) | null;
   onReplyToMessage: (() => void) | null;
   onReact: (() => void) | null;
+  onForward: (() => void) | null;
+  onEdit: (() => void) | null;
+  onCopy: (() => void) | null;
+  onDelete: (() => void) | null;
   renderMessageContextMenu: (
     renderer: AxoMenuBuilder.Renderer,
     children: ReactNode
@@ -503,9 +556,14 @@ function MessageMenu({
   i18n,
   direction,
   isWindowWidthNotNarrow,
+  isShiftHeld,
   onDownload,
   onReplyToMessage,
   onReact,
+  onForward,
+  onEdit,
+  onCopy,
+  onDelete,
   renderMessageContextMenu,
 }: MessageMenuProps) {
   return (
@@ -540,6 +598,7 @@ function MessageMenu({
                     role="button"
                     className="module-message__buttons__react"
                     aria-label={i18n('icu:reactToMessage')}
+                    title="React"
                     onDoubleClick={ev => {
                       // Prevent double click from triggering the replyToMessage action
                       ev.stopPropagation();
@@ -557,6 +616,7 @@ function MessageMenu({
               onClick={onDownload}
               role="button"
               aria-label={i18n('icu:downloadAttachment')}
+              title="Download"
               className={classNames(
                 'module-message__buttons__download',
                 `module-message__buttons__download--${direction}`
@@ -580,6 +640,7 @@ function MessageMenu({
               }}
               role="button"
               aria-label={i18n('icu:replyToMessage')}
+              title="Reply"
               className={classNames(
                 'module-message__buttons__reply',
                 `module-message__buttons__download--${direction}`
@@ -588,6 +649,50 @@ function MessageMenu({
                 // Prevent double click from triggering the replyToMessage action
                 ev.stopPropagation();
               }}
+            />
+          )}
+        </>
+      )}
+      {isShiftHeld && (
+        <>
+          {onForward && (
+            // eslint-disable-next-line jsx-a11y/interactive-supports-focus, jsx-a11y/click-events-have-key-events
+            <div
+              onClick={onForward}
+              role="button"
+              aria-label="Forward"
+              title="Forward"
+              className="module-message__buttons__forward"
+            />
+          )}
+          {onEdit && (
+            // eslint-disable-next-line jsx-a11y/interactive-supports-focus, jsx-a11y/click-events-have-key-events
+            <div
+              onClick={onEdit}
+              role="button"
+              aria-label="Edit"
+              title="Edit"
+              className="module-message__buttons__edit"
+            />
+          )}
+          {onCopy && (
+            // eslint-disable-next-line jsx-a11y/interactive-supports-focus, jsx-a11y/click-events-have-key-events
+            <div
+              onClick={onCopy}
+              role="button"
+              aria-label="Copy"
+              title="Copy"
+              className="module-message__buttons__copy"
+            />
+          )}
+          {onDelete && (
+            // eslint-disable-next-line jsx-a11y/interactive-supports-focus, jsx-a11y/click-events-have-key-events
+            <div
+              onClick={onDelete}
+              role="button"
+              aria-label="Delete"
+              title="Delete"
+              className="module-message__buttons__delete"
             />
           )}
         </>
@@ -607,6 +712,7 @@ function MessageMenu({
               ref={maybePopperRef}
               type="button"
               aria-label={i18n('icu:messageContextMenuButton')}
+              title="More"
               className={classNames(
                 'module-message__buttons__menu',
                 `module-message__buttons__download--${direction}`

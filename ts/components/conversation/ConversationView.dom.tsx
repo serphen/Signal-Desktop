@@ -3,6 +3,8 @@
 
 import {
   useCallback,
+  useRef,
+  useState,
   type JSX,
   type DragEvent,
   type ClipboardEvent,
@@ -16,6 +18,7 @@ import { SignalConversationBackground } from './SignalConversationBackground.dom
 
 export type PropsType = {
   conversationId: string;
+  conversationTitle: string;
   hasOpenModal: boolean;
   hasOpenPanel: boolean;
   isSelectMode: boolean;
@@ -65,6 +68,7 @@ function getAsFile(item: DataTransferItem): File | null {
 
 export function ConversationView({
   conversationId,
+  conversationTitle,
   hasOpenModal,
   hasOpenPanel,
   isSelectMode,
@@ -76,10 +80,43 @@ export function ConversationView({
   renderPanel,
   shouldHideConversationView,
 }: PropsType): JSX.Element {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  const onDragEnter = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.dataTransfer?.types?.includes('Files')) {
+        dragCounterRef.current += 1;
+        setIsDragOver(true);
+      }
+    },
+    []
+  );
+
+  const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
+  const onDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+    }
+  }, []);
+
   const onDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       event.stopPropagation();
       event.preventDefault();
+
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
 
       if (!event.dataTransfer) {
         return;
@@ -164,8 +201,27 @@ export function ConversationView({
     <div
       className="ConversationView ConversationPanel"
       onDrop={onDrop}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
       onPaste={onPaste}
     >
+      {isDragOver && (
+        <div className="ConversationView__drop-overlay">
+          <div className="ConversationView__drop-overlay__modal">
+            <div className="ConversationView__drop-overlay__icons">
+              <div className="ConversationView__drop-overlay__icon ConversationView__drop-overlay__icon--image" />
+              <div className="ConversationView__drop-overlay__icon ConversationView__drop-overlay__icon--document" />
+            </div>
+            <div className="ConversationView__drop-overlay__title">
+              Upload to <strong>{conversationTitle}</strong>
+            </div>
+            <div className="ConversationView__drop-overlay__instructions">
+              You can add comments before uploading.
+            </div>
+          </div>
+        </div>
+      )}
       <div
         className={classNames('ConversationPanel', {
           ConversationPanel__hidden: shouldHideConversationView,
