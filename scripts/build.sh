@@ -74,10 +74,12 @@ if [ "$PLATFORM" = "mac" ]; then
     NOOP_JS="/tmp/noop-hook.cjs"
     echo 'exports.afterPack = async () => {}; exports.afterSign = async () => {}' > "$NOOP_JS"
 
+    # Icon Composer's .icon format requires actool from Xcode 26.
     SIGNAL_ENV=production \
     CSC_IDENTITY_AUTO_DISCOVERY=false \
     SIGN_MACOS_SCRIPT="$NOSIGN" \
       npx electron-builder --mac --dir $ARCH_FLAG \
+        -c.mac.icon=build/icons/png/1024x1024.png \
         -c.mac.notarize=false \
         -c.forceCodeSigning=false \
         -c.npmRebuild=false \
