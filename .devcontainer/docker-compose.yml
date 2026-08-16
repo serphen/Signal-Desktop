@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TZ: "${TZ:-Etc/UTC}"
+        GIT_DELTA_VERSION: "0.18.2"
+        ZSH_IN_DOCKER_VERSION: "1.2.1"
+
+    volumes:
+      - ..:/workspace:cached
+#      - /workspace/.devcontainer
+      - /workspace/node_modules
+
+    command: sleep infinity
+
+    environment:
+      - SIGNAL_ENV=development
